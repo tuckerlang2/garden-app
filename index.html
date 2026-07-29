@@ -243,26 +243,6 @@ const NOTES_STORAGE_KEY = 'gardenNotesV1';
 const SCHEMA_VERSION = 6;
 
 /*
-  Storage shim: on claude.ai, window.storage is provided natively.
-  Once hosted standalone (e.g. GitHub Pages), window.storage doesn't
-  exist, so this defines a localStorage-backed version with the same
-  async get/set/{value} shape — the rest of the app never needs to
-  know which one it's talking to.
-*/
-if(!window.storage){
-  window.storage = {
-    async get(key){
-      const raw = localStorage.getItem(key);
-      return raw === null ? null : { key, value: raw };
-    },
-    async set(key, value){
-      localStorage.setItem(key, value);
-      return { key, value };
-    }
-  };
-}
-
-/*
 =====================================================================
  GARDEN TRACKER — architecture notes (read before extending)
 =====================================================================
@@ -372,12 +352,7 @@ rewrite. If/when that project starts, here's where things plug in:
                             bedId|zoneId, lastReading, lastReadAt }],
                             plus a data.sensorLog[] for history
                             rather than overloading bed/zone objects.
-  - This file talks to window.storage only, which is either the
-                            native claude.ai API or a localStorage
-                            shim of the same shape when hosted
-                            standalone (see the shim right after the
-                            STORAGE_KEY consts). Single-device only —
-                            no cross-device sync. A future "large
+  - This file talks to window.storage only. A future "large
                             environment" (real backend, Pi service,
                             scheduler) should treat this JSON shape
                             as the contract and sync/import it,
@@ -658,7 +633,7 @@ function buildMapSvg(){
     const fill = blendTowardRed(b.color, waterPct);
     const plantDots = (b.plants || []).map(p=>{
       const cx = bx + p.x*bw, cy = by + p.y*bh;
-      return `<circle cx="${cx}" cy="${cy}" r="4.2" fill="${p.color}" stroke="#F5F4EC" stroke-width="1"/>`;
+      return `<circle class="map-plant-dot" data-bed-id="${b.id}" data-plant-id="${p.id}" cx="${cx}" cy="${cy}" r="8.4" fill="${p.color}" stroke="#F5F4EC" stroke-width="1.5"/>`;
     }).join('');
     return `
       <g class="bed-rect" data-bed-id="${b.id}">
@@ -729,6 +704,7 @@ function renderMap(){
     ${renderPerennialPopup()}
     ${renderHarvestWindow()}
     ${renderGardenTowerPopup()}
+    ${renderPlantGrowthPopup()}
   `;
 }
 
@@ -876,6 +852,47 @@ function renderGrowthPopout(){
       <div class="plant-popout">
         <h3>Days growing</h3>
         <div class="growth-list">${rows}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* single-plant growth popup, opened by tapping a plant dot directly on the map
+   (separate from renderGrowthPopout, which lists every plant in a bed from inside bed view) */
+let plantGrowthPopup = null; // { bedId, plantId }
+
+function openPlantGrowthPopup(bedId, plantId){
+  plantGrowthPopup = { bedId, plantId };
+  render();
+}
+
+function closePlantGrowthPopup(){
+  plantGrowthPopup = null;
+  render();
+}
+
+function renderPlantGrowthPopup(){
+  if(!plantGrowthPopup) return '';
+  const bed = bedById(plantGrowthPopup.bedId);
+  const p = bed && (bed.plants || []).find(x=>x.id===plantGrowthPopup.plantId);
+  if(!p) return '';
+  const age = daysSince(p.plantedDate);
+  const mat = p.maturityDays || DEFAULT_CUSTOM_MATURITY;
+  const pct = Math.min(100, Math.round((age/mat)*100));
+  const ready = age >= mat;
+  return `
+    <div class="plant-popout-backdrop" onclick="if(event.target===this) closePlantGrowthPopup()">
+      <div class="plant-popout">
+        <h3>${escapeHtml(p.name)}</h3>
+        <div class="growth-list">
+          <div class="growth-item">
+            <div class="growth-item-top">
+              <span><span class="g-dot" style="background:${p.color}"></span>${escapeHtml(bed.name)}</span>
+              <span class="g-days">${ready ? 'Ready' : `day ${age} of ${mat}`}</span>
+            </div>
+            <div class="growth-bar-track"><div class="growth-bar-fill ${ready?'ready':''}" style="width:${pct}%"></div></div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -1372,6 +1389,11 @@ function mapPointToFeet(evt){
 function onMapCanvasClick(evt){
   if(evt.target.closest('.perennial-marker')) return;
   if(evt.target.closest('.garden-tower-marker')) return;
+  const plantDot = evt.target.closest('.map-plant-dot');
+  if(plantDot){
+    openPlantGrowthPopup(plantDot.getAttribute('data-bed-id'), plantDot.getAttribute('data-plant-id'));
+    return;
+  }
   const bedG = evt.target.closest('.bed-rect');
   if(placingPerennial){
     const pt = mapPointToFeet(evt);
