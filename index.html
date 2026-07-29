@@ -240,6 +240,21 @@
 <script>
 const STORAGE_KEY = 'gardenMapV4';
 const NOTES_STORAGE_KEY = 'gardenNotesV1';
+
+/* This app now runs standalone (outside claude.ai), so window.storage
+   (a claude.ai-only API) is replaced with this localStorage-backed adapter.
+   Same get/set(key, value) shape, so load()/save() below didn't need to change.
+   NOTE: localStorage is per-browser/per-device — data won't sync across phones/computers. */
+const storage = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    return v === null ? null : { value: v };
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return { value };
+  }
+};
 const SCHEMA_VERSION = 6;
 
 /*
@@ -247,7 +262,8 @@ const SCHEMA_VERSION = 6;
  GARDEN TRACKER — architecture notes (read before extending)
 =====================================================================
 This file is intentionally a standalone, dependency-free widget:
-one HTML file, no build step, state persisted via window.storage.
+one HTML file, no build step, state persisted via localStorage
+(single device — see the `storage` adapter near the top of this script).
 That's deliberate for now — but the data model below is written so
 it can grow into a full garden automation system later without a
 rewrite. If/when that project starts, here's where things plug in:
@@ -352,7 +368,7 @@ rewrite. If/when that project starts, here's where things plug in:
                             bedId|zoneId, lastReading, lastReadAt }],
                             plus a data.sensorLog[] for history
                             rather than overloading bed/zone objects.
-  - This file talks to window.storage only. A future "large
+  - This file talks to localStorage only. A future "large
                             environment" (real backend, Pi service,
                             scheduler) should treat this JSON shape
                             as the contract and sync/import it,
@@ -565,7 +581,7 @@ function normalizeData(d){
 
 async function load(){
   try{
-    const res = await window.storage.get(STORAGE_KEY, false);
+    const res = await storage.get(STORAGE_KEY);
     data = res ? JSON.parse(res.value) : { schemaVersion: SCHEMA_VERSION, beds: defaultBeds(), watering: defaultWatering(), seasonalFreq: defaultSeasonalFreqArray(), customPlants: [], perennials: [], harvests: [], gardenTowers: defaultGardenTowers() };
   }catch(e){
     data = { schemaVersion: SCHEMA_VERSION, beds: defaultBeds(), watering: defaultWatering(), seasonalFreq: defaultSeasonalFreqArray(), customPlants: [], perennials: [], harvests: [], gardenTowers: defaultGardenTowers() };
@@ -576,7 +592,7 @@ async function load(){
 
 async function loadNotesData(){
   try{
-    const res = await window.storage.get(NOTES_STORAGE_KEY, false);
+    const res = await storage.get(NOTES_STORAGE_KEY);
     notesData = res ? JSON.parse(res.value) : [];
   }catch(e){
     notesData = [];
@@ -585,12 +601,12 @@ async function loadNotesData(){
 }
 
 async function saveNotesData(){
-  try{ await window.storage.set(NOTES_STORAGE_KEY, JSON.stringify(notesData), false); }
+  try{ await storage.set(NOTES_STORAGE_KEY, JSON.stringify(notesData)); }
   catch(e){ console.error('notes save failed', e); }
 }
 
 async function save(){
-  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(data), false); }
+  try{ await storage.set(STORAGE_KEY, JSON.stringify(data)); }
   catch(e){ console.error('save failed', e); }
 }
 
