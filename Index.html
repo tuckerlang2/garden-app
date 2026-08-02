@@ -1,0 +1,2705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Garden Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Source+Sans+3:wght@400;500;600&display=swap');
+  :root{
+    --moss-dark:#2C3A22;
+    --moss:#4A5D38;
+    --soil:#6B4A34;
+    --stone:#E3E8DD;
+    --stone-deep:#D6DCC9;
+    --paper:#F5F4EC;
+    --amber:#C98A2E;
+    --amber-soft:#E9C77E;
+    --clay:#B5573B;
+    --ink:#242B1D;
+    --ink-soft:#5C6650;
+    --silver:#BFC6C4;
+    --silver-deep:#9AA3A0;
+    --gray-bed:#7C8B93;
+    --tan:#DCC79C;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--stone); font-family:'Source Sans 3',sans-serif; color:var(--ink);}
+  .app{max-width:540px; margin:0 auto; min-height:100vh; background:var(--paper); padding-bottom:40px;}
+  header{background:var(--moss-dark); color:var(--stone); padding:22px 20px 16px; border-bottom:4px solid var(--soil); display:flex; align-items:center; gap:12px;}
+  header .back{background:none; border:1px solid var(--amber-soft); color:var(--amber-soft); border-radius:8px; padding:6px 10px; font-family:inherit; font-size:13px; font-weight:600;}
+  header .titles{flex:1;}
+  header h1{font-family:'Fraunces',serif; font-weight:600; font-size:22px; margin:0 0 2px;}
+  header .sub{font-size:12px; color:var(--amber-soft);}
+
+  .map-wrap{margin:16px 20px; background:#fff; border:1px solid var(--stone-deep); border-radius:16px; padding:10px;}
+  svg{display:block; width:100%; height:auto; border-radius:10px;}
+
+  .bed-rect{cursor:pointer;}
+  .bed-rect rect{transition:filter 0.15s;}
+  .bed-rect:active rect{filter:brightness(0.94);}
+
+  .legend-note{margin:0 20px; font-size:12px; color:var(--ink-soft); text-align:center;}
+
+  .bed-list{margin:16px 20px 0; display:flex; flex-direction:column; gap:8px;}
+  .bed-list-item{
+    display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--stone-deep);
+    border-radius:10px; padding:10px 12px;
+  }
+  .swatch{width:16px; height:16px; border-radius:4px; flex-shrink:0; border:1px solid rgba(0,0,0,0.15);}
+  .bed-list-item .info{flex:1;}
+  .bed-list-item .name{font-weight:600; font-size:14px;}
+  .bed-list-item .dims{font-size:12px; color:var(--ink-soft);}
+  .bed-list-item button{background:var(--stone); border:1px solid var(--stone-deep); border-radius:7px; padding:6px 10px; font-family:inherit; font-size:12.5px; font-weight:600; color:var(--ink);}
+
+  .home-cards{margin:20px; display:flex; flex-direction:column; gap:12px;}
+  .home-card{background:var(--tan); border:2px solid #1A1A1A; border-radius:16px; padding:18px; text-align:left; font-family:inherit; display:flex; flex-direction:column; gap:4px; box-shadow:0 2px 0 rgba(0,0,0,0.1);}
+  .home-card:active{filter:brightness(0.96); transform:translateY(1px);}
+  .home-card-icon{font-size:26px; line-height:1;}
+  .home-card-title{font-family:'Fraunces',serif; font-weight:700; font-size:17px; color:var(--ink); margin-top:2px;}
+  .home-card-sub{font-size:12.5px; color:var(--ink-soft);}
+  .home-screen{position:relative; height:100vh; overflow:hidden;}
+  .home-bg-art{position:absolute; inset:0; width:100%; height:100%;}
+  .home-content{position:relative; z-index:1;}
+
+  .plant-info-row{display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--stone-deep); border-radius:10px; padding:10px 12px; width:100%; font-family:inherit; text-align:left;}
+  .plant-info-row .chev{color:var(--ink-soft); font-size:18px;}
+
+  .warning-list{margin:0 14px 10px; display:flex; flex-direction:column; gap:8px;}
+  .warning-item{background:#FBEFE4; border:1px solid var(--amber); border-radius:10px; padding:10px 12px; font-size:13px; color:var(--ink);}
+
+  .actions{display:flex; gap:10px; margin:18px 20px 0;}
+  .actions button{flex:1; padding:12px; border-radius:10px; font-family:'Fraunces',serif; font-weight:600; font-size:14.5px; border:none;}
+  .btn-export{background:var(--moss-dark); color:var(--paper);}
+
+  /* bed detail view */
+  .bed-screen{display:flex; flex-direction:column; height:100dvh; overflow:hidden;}
+  .bed-screen header{flex-shrink:0;}
+  .canvas-flex{flex:1; min-height:0; margin:10px 20px; background:#fff; border:1px solid var(--stone-deep); border-radius:14px; padding:8px; display:flex; align-items:center; justify-content:center;}
+  .canvas-flex svg{width:100%; height:100%; max-width:100%; max-height:100%;}
+  .bed-bottom-bar{flex-shrink:0; padding:8px 20px calc(12px + env(safe-area-inset-bottom)); border-top:1px solid var(--stone-deep); background:var(--paper); display:flex; flex-direction:column; gap:8px;}
+  .bed-bottom-bar .actions{margin:0;}
+  .bed-bottom-bar .plant-select-bar{margin:0;}
+  .bed-bottom-bar .palette-hint{margin:0;}
+
+  .palette-label{margin:14px 20px 8px; font-size:12px; text-transform:uppercase; letter-spacing:1.2px; color:var(--ink-soft); font-weight:600;}
+  .plant-select-bar{display:flex; align-items:center; gap:10px; margin:14px 20px 4px; flex-wrap:wrap;}
+  .plant-select-btn{
+    background:var(--moss-dark); color:var(--paper); border:none; border-radius:10px; padding:10px 16px;
+    font-family:'Fraunces',serif; font-weight:600; font-size:14px; display:flex; align-items:center; gap:8px;
+  }
+  .plant-select-btn .dot{width:12px; height:12px; border-radius:50%; flex-shrink:0; background:var(--amber-soft);}
+  .plant-select-clear{background:none; border:none; color:var(--ink-soft); font-size:12.5px; text-decoration:underline; font-family:inherit; padding:0;}
+  .spacing-fill-btn{background:var(--amber); color:#fff; border:none; border-radius:10px; padding:9px 14px; font-family:'Fraunces',serif; font-weight:600; font-size:13.5px; margin-left:auto;}
+  .plant-popout-item[disabled]{opacity:0.4;}
+  .fill-preview-wrap{margin:0 14px 10px; background:#fff; border:1px solid var(--stone-deep); border-radius:10px; padding:8px;}
+  .fill-count-line{padding:0 14px 6px; font-size:13px; color:var(--ink-soft);}
+  .fill-count-line strong{color:var(--ink);}
+  .palette-hint{margin:0 20px 4px; font-size:12px; color:var(--moss); font-weight:600;}
+
+  .plant-popout-backdrop{
+    position:fixed; inset:0; background:rgba(36,43,29,0.35); z-index:15;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .plant-popout{
+    background:var(--paper); width:100%; max-width:540px; height:26vh; min-height:210px;
+    border-radius:18px 18px 0 0; padding:14px 6px 10px; display:flex; flex-direction:column;
+    box-shadow:0 -6px 20px rgba(44,58,34,0.25);
+  }
+  .plant-popout h3{margin:0 14px 8px; font-family:'Fraunces',serif; font-size:16px;}
+  .plant-popout-list{overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:2px; padding:0 8px;}
+  .plant-popout-item{
+    display:flex; align-items:center; gap:10px; padding:11px 10px; border-radius:9px; font-size:14.5px;
+    font-weight:600; color:var(--ink); border:none; background:none; width:100%; text-align:left; font-family:inherit;
+  }
+  .plant-popout-item:active{background:var(--stone);}
+  .plant-popout-item .dot{width:14px; height:14px; border-radius:50%; flex-shrink:0;}
+  .plant-popout-item.custom{color:var(--ink-soft); border-top:1px dashed var(--stone-deep); margin-top:4px; padding-top:14px; border-radius:0;}
+
+  .dims-bar{display:flex; align-items:center; gap:8px; padding:12px 20px; font-size:13px; color:var(--ink-soft); flex-wrap:wrap;}
+  .canvas-wrap{margin:0 20px 8px; background:#fff; border:1px solid var(--stone-deep); border-radius:14px; padding:10px;}
+  .canvas-hint{font-size:11.5px; color:var(--ink-soft); text-align:center; margin:6px 0 2px;}
+  .legend{margin:14px 20px 0; display:flex; flex-wrap:wrap; gap:8px;}
+  .legend-item{display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--stone-deep); border-radius:20px; padding:5px 10px; font-size:12.5px;}
+  .legend-dot{width:11px; height:11px; border-radius:50%; flex-shrink:0;}
+
+  .growth-list{overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:10px; padding:0 14px 6px;}
+  .growth-item{background:#fff; border:1px solid var(--stone-deep); border-radius:10px; padding:10px 12px;}
+  .growth-item-top{display:flex; justify-content:space-between; align-items:center; font-size:13.5px; font-weight:600;}
+  .growth-item-top .g-dot{width:11px; height:11px; border-radius:50%; margin-right:7px; display:inline-block; vertical-align:middle;}
+  .growth-item .g-days{font-size:12px; color:var(--ink-soft); font-weight:400;}
+  .growth-bar-track{background:var(--stone); border-radius:6px; height:7px; margin-top:7px; overflow:hidden;}
+  .growth-bar-fill{height:100%; border-radius:6px; background:var(--moss);}
+  .growth-bar-fill.ready{background:var(--amber);}
+  .growth-empty{padding:20px; text-align:center; color:var(--ink-soft); font-size:13.5px;}
+
+  .watering-bar{margin:14px 20px 4px; display:flex; gap:10px;}
+  .watering-chip{
+    flex:1; background:#fff; border:1px solid var(--stone-deep); border-radius:12px; padding:10px 12px;
+    display:flex; align-items:center; gap:9px; text-align:left;
+  }
+  .watering-drop{width:20px; height:20px; border-radius:50% 50% 50% 4px; transform:rotate(45deg); flex-shrink:0;}
+  .watering-chip .zt{font-size:13px; font-weight:600;}
+  .watering-chip .zs{font-size:11.5px; color:var(--ink-soft);}
+  .watering-sheet{background:var(--paper); width:100%; max-width:400px; border-radius:16px; padding:20px;}
+  .watering-sheet h2{font-family:'Fraunces',serif; font-size:18px; margin:0 0 14px;}
+  .watering-sheet .field small{display:block; color:var(--ink-soft); font-size:11.5px; margin-top:4px;}
+  .season-table{width:100%; border-collapse:collapse; font-size:12.5px; margin-top:4px;}
+  .season-table td{padding:4px 6px; border-bottom:1px solid var(--stone-deep);}
+  .season-table tr.current td{font-weight:700; color:var(--moss-dark);}
+
+  .modal-backdrop{position:fixed; inset:0; background:rgba(36,43,29,0.5); display:flex; align-items:center; justify-content:center; z-index:10; padding:20px;}
+  .modal{background:var(--paper); width:100%; max-width:340px; border-radius:16px; padding:20px;}
+  .modal h2{font-family:'Fraunces',serif; font-size:18px; margin:0 0 14px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:11.5px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px;}
+  .field input, .field select, .field textarea{width:100%; padding:9px 10px; border:1px solid var(--stone-deep); border-radius:8px; font-family:inherit; font-size:14.5px; background:#fff; color:var(--ink);}
+  .field textarea{resize:vertical;}
+  .color-row{display:flex; gap:8px; margin-top:4px; flex-wrap:wrap;}
+  .color-swatch{width:26px; height:26px; border-radius:50%; border:2px solid transparent; cursor:pointer;}
+  .color-swatch.sel{border-color:var(--ink);}
+  .modal-actions{display:flex; gap:8px; margin-top:6px;}
+  .modal-actions button{flex:1; padding:11px; border-radius:8px; font-family:inherit; font-weight:600; font-size:13.5px; border:none;}
+  .btn-cancel{background:var(--stone); color:var(--ink);}
+  .btn-save{background:var(--moss-dark); color:var(--paper);}
+  .btn-delete{background:var(--clay); color:#fff;}
+
+  /* header utility buttons */
+  header .util-btn{background:none; border:1px solid var(--amber-soft); color:var(--amber-soft); border-radius:8px; padding:6px 9px; font-family:inherit; font-size:13px; font-weight:600; margin-left:6px;}
+
+  /* settings page */
+  .settings-section{margin:18px 20px;}
+  .settings-section h2{font-family:'Fraunces',serif; font-size:16px; margin:0 0 4px;}
+  .settings-section .hint{font-size:12px; color:var(--ink-soft); margin-bottom:10px;}
+  .month-freq-grid{display:flex; flex-direction:column; gap:6px;}
+  .month-freq-row{display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid var(--stone-deep); border-radius:8px; padding:8px 12px;}
+  .month-freq-row.off{opacity:0.6;}
+  .month-freq-row input{width:56px; padding:6px 8px; border:1px solid var(--stone-deep); border-radius:6px; text-align:center; font-family:inherit; font-size:13.5px;}
+  .month-freq-row .mfr-label{font-size:13.5px; font-weight:600;}
+  .month-freq-row .mfr-unit{font-size:11.5px; color:var(--ink-soft); margin-left:6px;}
+
+  .custom-plant-row{display:flex; align-items:center; gap:9px; background:#fff; border:1px solid var(--stone-deep); border-radius:9px; padding:9px 11px; margin-bottom:6px;}
+  .custom-plant-row .dot{width:14px; height:14px; border-radius:50%; flex-shrink:0;}
+  .custom-plant-row .name{flex:1; font-size:13.5px; font-weight:600;}
+  .custom-plant-row .del-btn{background:none; border:none; color:var(--clay); font-size:19px; font-family:inherit; padding:0 4px; line-height:1;}
+  .add-plant-form{background:#fff; border:1px solid var(--stone-deep); border-radius:10px; padding:12px; margin-top:8px;}
+  .add-plant-form input[type=text]{width:100%; padding:9px 10px; border:1px solid var(--stone-deep); border-radius:8px; font-family:inherit; font-size:14.5px; margin-bottom:8px;}
+  .add-plant-form input[type=number]{width:90px; padding:9px 10px; border:1px solid var(--stone-deep); border-radius:8px; font-family:inherit; font-size:14.5px;}
+  .add-plant-form label{display:block; font-size:11px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px;}
+  .add-plant-form .apf-row{display:flex; align-items:flex-end; gap:12px; margin-top:2px;}
+
+  .bed-edit-card{background:#fff; border:1px solid var(--stone-deep); border-radius:10px; padding:12px; margin-bottom:10px;}
+  .bed-edit-card input[type=text]{width:100%; padding:9px 10px; border:1px solid var(--stone-deep); border-radius:8px; font-family:inherit; font-size:14.5px; margin-bottom:9px;}
+  .bed-edit-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:7px;}
+  .bed-edit-grid div{display:flex; flex-direction:column; gap:3px;}
+  .bed-edit-grid label{font-size:9.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.4px;}
+  .bed-edit-grid input{width:100%; padding:7px 6px; border:1px solid var(--stone-deep); border-radius:6px; font-family:inherit; font-size:13px; text-align:center;}
+  .bed-edit-footer{display:flex; justify-content:flex-end; margin-top:9px;}
+  .bed-edit-footer button{background:none; border:none; color:var(--clay); font-size:12.5px; font-weight:600; font-family:inherit; text-decoration:underline;}
+  .add-bed-btn{width:100%; padding:12px; border-radius:10px; border:1px dashed var(--stone-deep); background:none; font-family:'Fraunces',serif; font-weight:600; font-size:14px; color:var(--ink-soft);}
+
+  /* shared stat-row/mini-btn, used by the perennial popup */
+  .stat-row{display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:13px;}
+  .stat-row .stat-text{color:var(--ink);}
+  .stat-row .stat-text.due{color:var(--clay); font-weight:600;}
+  .stat-row .stat-text.soon{color:var(--amber); font-weight:600;}
+  .mini-btn{background:var(--stone); border:1px solid var(--stone-deep); border-radius:6px; padding:4px 9px; font-size:12px; font-family:inherit; color:var(--ink); font-weight:600;}
+  .util-btn.active{background:var(--amber-soft); color:var(--moss-dark); border-color:var(--amber-soft);}
+  .perennial-marker{cursor:pointer;}
+  .garden-tower-marker{cursor:pointer;}
+  .tower-leaf{
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: towerLeafSway 3.6s ease-in-out infinite;
+  }
+  @keyframes towerLeafSway{
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50% { transform: scale(1.1) rotate(4deg); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .tower-leaf{ animation: none; }
+  }
+
+  /* harvest log */
+  .hint{font-size:12px; color:var(--ink-soft);}
+  .harvest-log-field{border-top:1px dashed var(--stone-deep); padding-top:12px; margin-top:2px;}
+  .harvest-log-row{display:flex; gap:8px;}
+  .harvest-recent{margin:0 0 14px; font-size:12.5px;}
+  .harvest-recent-label{font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--ink-soft); font-weight:600; margin-bottom:4px;}
+  .harvest-entry{display:flex; flex-direction:column; gap:1px; padding:6px 0; border-bottom:1px solid var(--stone-deep);}
+  .harvest-entry:last-child{border-bottom:none;}
+  .harvest-note{font-size:11.5px; color:var(--ink-soft);}
+  .harvest-window-list{max-height:50vh; overflow-y:auto;}
+  .empty-state .big-emoji{font-size:36px; display:block; margin-bottom:8px;}
+
+  /* notepad */
+  .notepad-list{margin:14px 20px; display:flex; flex-direction:column; gap:8px;}
+  .note-card{background:#FFFDF6; border:1px solid var(--stone-deep); border-left:4px solid var(--amber); border-radius:10px; padding:10px 12px; text-align:left; width:100%; font-family:inherit;}
+  .note-card .note-date{font-size:11px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:0.5px;}
+  .note-card .note-preview{font-size:14px; margin-top:4px; color:var(--ink); white-space:pre-wrap; overflow:hidden; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;}
+  .note-empty{margin:50px 20px; text-align:center; color:var(--ink-soft);}
+  .notepad-editor{margin:14px 20px; background:#FFFDF6; border:1px solid var(--stone-deep); border-radius:12px; overflow:hidden;}
+  .notepad-editor-header{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:2px solid #E8B4B8; background:#FFF9EE;}
+  .notepad-editor-header .note-editor-date{font-family:'Fraunces',serif; font-weight:600; font-size:15px; color:var(--ink);}
+  .notepad-textarea{
+    display:block; width:100%; min-height:48vh; border:none; outline:none; resize:vertical;
+    background-color:#FFFDF6;
+    background-image:
+      linear-gradient(to right, transparent 33px, #E8B4B8 33px, #E8B4B8 35px, transparent 35px),
+      repeating-linear-gradient(to bottom, transparent, transparent 27px, #C7D3E0 27px, #C7D3E0 28px);
+    padding:14px 16px 14px 44px;
+    font-family:'Source Sans 3', sans-serif; font-size:15px; line-height:28px; color:var(--ink);
+    box-sizing:border-box;
+  }
+  .notepad-editor-actions{display:flex; gap:8px; padding:10px 16px; border-top:1px solid var(--stone-deep);}
+  .notepad-editor-actions button{flex:1; padding:11px; border-radius:8px; font-family:inherit; font-weight:600; font-size:13.5px; border:none;}
+  .notes-fab{position:fixed; left:50%; bottom:24px; transform:translateX(-50%); max-width:480px; width:calc(100% - 40px); background:var(--moss-dark); color:var(--paper); border:none; border-radius:14px; padding:14px; font-family:'Fraunces',serif; font-size:16px; font-weight:600; box-shadow:0 6px 20px rgba(44,58,34,0.35);}
+</style>
+</head>
+<body>
+<div id="root" class="app"></div>
+
+<script>
+const STORAGE_KEY = 'gardenMapV4';
+const NOTES_STORAGE_KEY = 'gardenNotesV1';
+const SCHEMA_VERSION = 8;
+
+/*
+=====================================================================
+ GARDEN TRACKER — architecture notes (read before extending)
+=====================================================================
+This file is intentionally a standalone, dependency-free widget:
+one HTML file, no build step, state persisted via window.storage.
+That's deliberate for now — but the data model below is written so
+it can grow into a full garden automation system later without a
+rewrite. If/when that project starts, here's where things plug in:
+
+  - data.schemaVersion      bump this + extend normalizeData() for
+                            any future schema change, so old saves
+                            upgrade instead of breaking.
+  - data.watering            a single garden-wide schedule (no more
+                            per-bed hose zones — you water everything
+                            in one pass). Frequency comes from
+                            data.seasonalFreq[month], user-editable
+                            in Settings; only lastWatered is
+                            persisted otherwise. This is where a
+                            future valve/pump controller would hook
+                            in: writing data.watering.lastWatered
+                            from software can be the same signal
+                            that triggers the valve. VISUAL: bed fill
+                            colors on the map are blended toward red
+                            (bedWaterUrgencyPct/blendTowardRed) as the
+                            due date approaches, purely as a display
+                            layer — b.color itself never changes, only
+                            the rendered fill. All beds shift together
+                            since watering is garden-wide, not per-bed.
+  - data.seasonalFreq[12]    editable per-month watering frequency
+                            (days between waterings, or null = off
+                            season), seeded from DEFAULT_SEASONAL_FREQ
+                            on first load, then fully user-owned.
+  - data.customPlants[]      user-added palette entries from Settings
+                            (id, name, color, maturityDays) — merged
+                            with the built-in PALETTE at render time
+                            via effectivePalette().
+  - data.harvests[]         harvest log entries, denormalized (plantName
+                            /bedName captured at log time so the log
+                            stays meaningful after a plant is removed
+                            or renamed). Logged from the bed-plant edit
+                            modal or the perennial popup ("Log harvest"
+                            button on existing plants only, not on
+                            first-add). The 🧺 header button on the map
+                            shows a rolling "this week, last year"
+                            comparison (±7 days around today's date one
+                            year back) — deliberately a rolling window,
+                            not a fixed calendar-year or year-picker
+                            view, so it's always relevant to what's
+                            happening in the garden right now.
+  - data.gardenTowers[]     fixed circular planters (e.g. a 2.5' tower
+                            pot) drawn to true scale on the main map,
+                            each on its OWN watering schedule — separate
+                            from data.watering (which is only for beds).
+                            Deliberately much simpler than beds/perennials:
+                            no gradient color animation, no per-plant
+                            entries — just a discrete urgency ring
+                            (same colors as perennials) plus a purely
+                            decorative animated lettuce-leaf graphic so
+                            it always reads as planted. The popup is a
+                            single free-text field (t.notes) — the person
+                            just types what's in it, no structured list.
+  - data.perennials[]       permanent plants (trees, shrubs, vines,
+                            perennial flowers) placed directly on the
+                            MAIN map, not inside a bed — separate from
+                            beds because they live forever and aren't
+                            part of the seasonal bed-watering pass.
+                            Each carries its own waterDays/feedDays +
+                            lastWatered/lastFed (same per-plant cadence
+                            idea as bed plants' maturity tracking, just
+                            applied to watering instead of growth), plus
+                            ageYearsAtAdd + dateAdded: age is a plain
+                            user-estimated number ("~8 years old"),
+                            recalibrated (dateAdded reset to today) any
+                            time the person edits it, so it keeps
+                            counting up correctly without needing
+                            constant manual updates. Lives in core
+                            `data` (not its own storage key) since it's
+                            low-frequency, spatial, map-level data just
+                            like beds. This replaced an earlier
+                            standalone "Journal" list view (merged in
+                            from garden-planner.html, briefly lived here
+                            as its own tab) — that flat list wasn't
+                            useful for things that live forever, so it
+                            was replaced with map-placed perennial icons
+                            instead. If a future need re-emerges for
+                            tracking non-perennial potted/indoor plants
+                            as a flat list, that's a different feature
+                            from this one; don't conflate the two.
+  - NOTES live in a SEPARATE storage key (NOTES_STORAGE_KEY), not in
+                            the core `data` object above. That's
+                            deliberate: notes will grow indefinitely
+                            over seasons/years, while core garden
+                            data (beds/plants/watering/settings) is
+                            small and changes constantly during
+                            active use. Keeping them in one blob
+                            would mean every plant drag or watering
+                            tap rewrites your entire notes history
+                            too. Split now, before that becomes slow.
+  - data.beds[].plants[]    each plant already carries plantedDate +
+                            maturityDays — the seed of a real yearly
+                            planting-schedule feature (sow date,
+                            transplant date, succession planting,
+                            expected harvest window).
+  - sensors (not present yet): when temp/pH/soil-moisture hardware
+                            is added, model as its own top-level
+                            array, e.g. data.sensors = [{ id, type,
+                            bedId|zoneId, lastReading, lastReadAt }],
+                            plus a data.sensorLog[] for history
+                            rather than overloading bed/zone objects.
+  - This file talks to window.storage only. A future "large
+                            environment" (real backend, Pi service,
+                            scheduler) should treat this JSON shape
+                            as the contract and sync/import it,
+                            rather than this file talking to
+                            hardware directly.
+
+No hardware/network features are implemented yet — this is purely
+so the data shape won't need to be thrown away later.
+=====================================================================
+*/
+let data = null;
+let notesData = null;
+let editingNote = null;
+let newPlantColor = null;
+let placingPerennial = false;
+let perennialPopup = null; // { id, isNew }
+let gardenTowerPopupId = null;
+let view = 'home'; // 'home' | 'planning' | 'map' | 'bed' | 'settings' | 'notes' | 'plantInfo'
+let activeBedId = null;
+let editingMarker = null;
+let draggingId = null;
+let svgEl = null;
+
+const PLANT_COLORS = ['#4A5D38','#C98A2E','#B5573B','#6B4A34','#7A8B6F','#D9A441','#8A5A44','#3E6B4F'];
+const TOWER_TERRACOTTA = '#C1794E';
+
+function defaultGardenTowers(){
+  // 2.5' diameter tower planter, top-left corner of the yard.
+  return [
+    { id:'tower_1', waterDays:3, lastWatered: todayStr(), notes:'', x:1.25, y:1.25 }
+  ];
+}
+
+const PALETTE = [
+  { id:'tom_large', name:'Tomato (Large)', color:'#A9291E' },
+  { id:'tom_cherry', name:'Tomato (Cherry)', color:'#E2572B' },
+  { id:'tomatillo', name:'Tomatillo', color:'#8FA83C' },
+  { id:'turnip', name:'Turnip', color:'#8E6BA8' },
+  { id:'radish', name:'Radish', color:'#D1467A' },
+  { id:'potato', name:'Potato', color:'#8C6A4B' },
+  { id:'cabbage', name:'Cabbage', color:'#7FB07A' },
+  { id:'napa', name:'Cabbage (Napa)', color:'#B3CE7E' },
+  { id:'green_bean', name:'Bean (Green)', color:'#4C8C4A' },
+  { id:'bell_pepper', name:'Pepper (Bell)', color:'#E0A62E' },
+  { id:'jalapeno', name:'Pepper (Jalapeño)', color:'#35753A' },
+  { id:'shishito', name:'Pepper (Shishito)', color:'#6DA34D' },
+  { id:'basil', name:'Basil', color:'#2F6B3A' },
+  { id:'coriander', name:'Coriander', color:'#5C8F5C' },
+  { id:'dill', name:'Dill', color:'#7FA65E' },
+  { id:'zucchini', name:'Zucchini', color:'#45753A' },
+  { id:'pumpkin', name:'Pumpkin', color:'#D9791E' },
+  { id:'melon', name:'Melon', color:'#C7A93A' },
+  { id:'watermelon', name:'Watermelon', color:'#2E7D5B' },
+  { id:'arugula', name:'Arugula', color:'#6B8E4E' },
+  { id:'head_lettuce', name:'Lettuce (Head)', color:'#8FBE5A' },
+  { id:'leaf_lettuce', name:'Lettuce (Leaf Mix)', color:'#A9CB5E' },
+  { id:'carrot', name:'Carrot', color:'#E07B39' },
+  { id:'chard', name:'Chard', color:'#B5457A' },
+  { id:'sweet_potato', name:'Potato (Sweet)', color:'#9C5B2E' },
+  { id:'onion', name:'Onion', color:'#A8628E' },
+  { id:'garlic', name:'Garlic', color:'#C2B280' }
+];
+
+const MATURITY_DAYS = {
+  tom_large:75, tom_cherry:60, tomatillo:75, turnip:50, radish:25, potato:90,
+  cabbage:70, napa:60, green_bean:55, bell_pepper:70, jalapeno:65, shishito:60,
+  basil:60, coriander:50, dill:55, zucchini:50, pumpkin:100, melon:80,
+  watermelon:85, arugula:30, head_lettuce:55, leaf_lettuce:45, carrot:70,
+  chard:55, sweet_potato:100, onion:100, garlic:240
+};
+const DEFAULT_CUSTOM_MATURITY = 60;
+
+// Typical spacing in inches: { inRow, betweenRows }. inRow = space between
+// plants within a row; betweenRows = space between rows. Reference values
+// for the built-in PALETTE; customPlants carry their own spacingInRow/
+// spacingBetweenRows fields set (optionally) when added in Settings.
+const SPACING_DATA = {
+  tom_large:{inRow:24, betweenRows:36}, tom_cherry:{inRow:18, betweenRows:30},
+  tomatillo:{inRow:24, betweenRows:36}, turnip:{inRow:4, betweenRows:12},
+  radish:{inRow:2, betweenRows:6}, potato:{inRow:12, betweenRows:30},
+  cabbage:{inRow:15, betweenRows:24}, napa:{inRow:12, betweenRows:18},
+  green_bean:{inRow:4, betweenRows:18}, bell_pepper:{inRow:16, betweenRows:24},
+  jalapeno:{inRow:14, betweenRows:24}, shishito:{inRow:14, betweenRows:24},
+  basil:{inRow:10, betweenRows:12}, coriander:{inRow:6, betweenRows:12},
+  dill:{inRow:10, betweenRows:12}, zucchini:{inRow:24, betweenRows:36},
+  pumpkin:{inRow:36, betweenRows:72}, melon:{inRow:24, betweenRows:48},
+  watermelon:{inRow:36, betweenRows:72}, arugula:{inRow:3, betweenRows:10},
+  head_lettuce:{inRow:10, betweenRows:12}, leaf_lettuce:{inRow:6, betweenRows:10},
+  carrot:{inRow:3, betweenRows:12}, chard:{inRow:8, betweenRows:18},
+  sweet_potato:{inRow:12, betweenRows:36}, onion:{inRow:4, betweenRows:12},
+  garlic:{inRow:4, betweenRows:8}
+};
+
+function getSpacingForId(id){
+  if(SPACING_DATA.hasOwnProperty(id)) return SPACING_DATA[id];
+  const custom = (data.customPlants||[]).find(p=>p.id===id);
+  if(custom && (custom.spacingInRow || custom.spacingBetweenRows)){
+    return { inRow: custom.spacingInRow || null, betweenRows: custom.spacingBetweenRows || null };
+  }
+  return null;
+}
+
+// General, commonly-cited reference info (extension-office style, not live/USDA-sourced)
+// used by the Plant Info browser, and by the companion/rotation warning checks.
+// companions/avoid only reference other ids in this app's own PALETTE, so they can be
+// checked live; broader companions (marigold, corn, etc.) are mentioned in `notes` instead.
+const FAMILY_LABELS = {
+  nightshade: 'Nightshade family', brassica: 'Brassica (cole crop) family',
+  legume: 'Legume family', cucurbit: 'Cucurbit (squash) family',
+  allium: 'Allium (onion) family', umbellifer: 'Umbellifer (carrot) family',
+  amaranth: 'Amaranth/beet family', mint: 'Mint family',
+  aster: 'Aster (lettuce) family', morningglory: 'Morning glory family'
+};
+
+const PLANT_INFO = {
+  tom_large:{ family:'nightshade', pests:['Tomato hornworm','Aphids','Whiteflies'], diseases:['Blossom end rot','Early blight','Powdery mildew'],
+    companions:['basil','carrot','onion','garlic'], avoid:['potato','cabbage','napa','dill'],
+    seedStart:'Start indoors 6–8 weeks before your last frost date; transplant out once frost danger has passed.',
+    succession:null, notes:'Marigold is a classic companion for deterring nematodes, though it isn\u2019t tracked in this app.' },
+  tom_cherry:{ family:'nightshade', pests:['Tomato hornworm','Aphids','Whiteflies'], diseases:['Blossom end rot','Early blight','Powdery mildew'],
+    companions:['basil','carrot','onion','garlic'], avoid:['potato','cabbage','napa','dill'],
+    seedStart:'Start indoors 6–8 weeks before your last frost date; transplant out once frost danger has passed.',
+    succession:null, notes:null },
+  tomatillo:{ family:'nightshade', pests:['Tomato hornworm','Aphids','Whiteflies'], diseases:['Blossom end rot','Early blight','Powdery mildew'],
+    companions:['basil','carrot','onion','garlic'], avoid:['potato','cabbage','napa','dill'],
+    seedStart:'Start indoors 6–8 weeks before your last frost date; transplant out once frost danger has passed. Plant at least two for pollination.',
+    succession:null, notes:null },
+  turnip:{ family:'brassica', pests:['Flea beetles','Root maggots'], diseases:['Clubroot'],
+    companions:['green_bean','leaf_lettuce'], avoid:[],
+    seedStart:'Direct sow 2–4 weeks before last frost for a spring crop, or in late summer for a fall crop.',
+    succession:'Resow every 3 weeks through the cool season for a steady harvest.', notes:null },
+  radish:{ family:'brassica', pests:['Flea beetles','Root maggots'], diseases:['Clubroot'],
+    companions:['leaf_lettuce','head_lettuce','green_bean','carrot'], avoid:[],
+    seedStart:'Direct sow as soon as soil can be worked, about 4 weeks before last frost.',
+    succession:'Resow every 2 weeks for a continuous harvest — radishes mature fast.', notes:null },
+  potato:{ family:'nightshade', pests:['Colorado potato beetle','Aphids','Wireworms'], diseases:['Early blight','Late blight','Scab'],
+    companions:['green_bean','cabbage','napa'], avoid:['tom_large','tom_cherry','tomatillo','zucchini','pumpkin','melon','watermelon'],
+    seedStart:'Plant seed potato pieces (cut, cured for a day or two) directly in the ground 2–4 weeks before your last frost date.',
+    succession:null, notes:null },
+  cabbage:{ family:'brassica', pests:['Cabbage worms/loopers','Aphids','Flea beetles'], diseases:['Clubroot','Black rot'],
+    companions:['dill','onion','chard'], avoid:['tom_large','tom_cherry','tomatillo'],
+    seedStart:'Start indoors 4–6 weeks before last frost for a spring crop; can also be direct sown in mid/late summer for a fall crop.',
+    succession:null, notes:null },
+  napa:{ family:'brassica', pests:['Cabbage worms/loopers','Aphids','Flea beetles'], diseases:['Clubroot','Black rot'],
+    companions:['dill','onion','chard'], avoid:['tom_large','tom_cherry','tomatillo'],
+    seedStart:'Direct sow or start indoors 4–6 weeks before last frost; napa does best as a fall crop in many climates since it bolts in heat.',
+    succession:null, notes:null },
+  green_bean:{ family:'legume', pests:['Bean beetles','Aphids'], diseases:['Powdery mildew','Rust','Bacterial blight'],
+    companions:['carrot','cabbage','napa','radish','turnip'], avoid:['onion','garlic'],
+    seedStart:'Direct sow after all frost danger has passed and soil has warmed — beans are frost-sensitive and dislike transplanting.',
+    succession:'Resow every 2–3 weeks through the season for continuous harvest.', notes:null },
+  bell_pepper:{ family:'nightshade', pests:['Aphids','Pepper weevils','Flea beetles'], diseases:['Blossom end rot','Bacterial leaf spot'],
+    companions:['basil','onion','carrot'], avoid:['green_bean'],
+    seedStart:'Start indoors 8–10 weeks before last frost — peppers are slow to germinate. Transplant after frost danger passes and soil has warmed.',
+    succession:null, notes:null },
+  jalapeno:{ family:'nightshade', pests:['Aphids','Pepper weevils','Flea beetles'], diseases:['Blossom end rot','Bacterial leaf spot'],
+    companions:['basil','onion','carrot'], avoid:['green_bean'],
+    seedStart:'Start indoors 8–10 weeks before last frost — peppers are slow to germinate. Transplant after frost danger passes and soil has warmed.',
+    succession:null, notes:null },
+  shishito:{ family:'nightshade', pests:['Aphids','Pepper weevils','Flea beetles'], diseases:['Blossom end rot','Bacterial leaf spot'],
+    companions:['basil','onion','carrot'], avoid:['green_bean'],
+    seedStart:'Start indoors 8–10 weeks before last frost — peppers are slow to germinate. Transplant after frost danger passes and soil has warmed.',
+    succession:null, notes:null },
+  basil:{ family:'mint', pests:['Aphids','Japanese beetles'], diseases:['Downy mildew','Fusarium wilt'],
+    companions:['tom_large','tom_cherry','tomatillo','bell_pepper','jalapeno','shishito'], avoid:[],
+    seedStart:'Start indoors 6–8 weeks before last frost, or direct sow after frost danger passes and soil is warm. Very cold-sensitive.',
+    succession:null, notes:null },
+  coriander:{ family:'umbellifer', pests:['Aphids'], diseases:['Powdery mildew'],
+    companions:['cabbage','napa'], avoid:[],
+    seedStart:'Direct sow after last frost — coriander/cilantro dislikes transplanting and bolts quickly in heat.',
+    succession:'Resow every 2–3 weeks through the cool season since it bolts fast once it warms up.', notes:null },
+  dill:{ family:'umbellifer', pests:['Aphids','Parsleyworms (swallowtail caterpillars)'], diseases:['Powdery mildew'],
+    companions:['cabbage','napa'], avoid:['carrot','tom_large','tom_cherry','tomatillo'],
+    seedStart:'Direct sow after last frost; dislikes transplanting once established.',
+    succession:null, notes:'Mature, flowering dill can inhibit nearby carrots and tomatoes — fine as a young plant, worth watching as it matures.' },
+  zucchini:{ family:'cucurbit', pests:['Squash bugs','Cucumber beetles','Vine borers'], diseases:['Powdery mildew','Downy mildew','Bacterial wilt'],
+    companions:['green_bean','radish'], avoid:['potato'],
+    seedStart:'Dislikes root disturbance — usually direct sown after frost danger passes, or started indoors in biodegradable pots just 2–3 weeks early.',
+    succession:null, notes:'Corn and squash are classic "three sisters" companions alongside beans, even though corn isn\u2019t tracked in this app.' },
+  pumpkin:{ family:'cucurbit', pests:['Squash bugs','Cucumber beetles','Vine borers'], diseases:['Powdery mildew','Downy mildew','Bacterial wilt'],
+    companions:['green_bean','radish'], avoid:['potato'],
+    seedStart:'Dislikes root disturbance — usually direct sown after frost danger passes, or started indoors in biodegradable pots just 2–3 weeks early.',
+    succession:null, notes:null },
+  melon:{ family:'cucurbit', pests:['Squash bugs','Cucumber beetles','Vine borers'], diseases:['Powdery mildew','Downy mildew','Bacterial wilt'],
+    companions:['green_bean','radish'], avoid:['potato'],
+    seedStart:'Dislikes root disturbance — usually direct sown after frost danger passes and soil is warm, or started indoors in biodegradable pots just 2–3 weeks early.',
+    succession:null, notes:null },
+  watermelon:{ family:'cucurbit', pests:['Squash bugs','Cucumber beetles','Vine borers'], diseases:['Powdery mildew','Downy mildew','Bacterial wilt'],
+    companions:['green_bean','radish'], avoid:['potato'],
+    seedStart:'Dislikes root disturbance — usually direct sown after frost danger passes and soil is warm, or started indoors in biodegradable pots just 2–3 weeks early.',
+    succession:null, notes:null },
+  arugula:{ family:'brassica', pests:['Flea beetles','Aphids'], diseases:['Downy mildew'],
+    companions:['carrot','onion'], avoid:[],
+    seedStart:'Direct sow as soon as soil can be worked, 2–3 weeks before last frost.',
+    succession:'Resow every 2–3 weeks — arugula bolts quickly once it warms up.', notes:null },
+  head_lettuce:{ family:'aster', pests:['Aphids','Slugs & snails'], diseases:['Downy mildew','Lettuce drop'],
+    companions:['carrot','radish','onion','turnip'], avoid:[],
+    seedStart:'Direct sow 2–4 weeks before last frost, or start indoors 4–6 weeks early for an earlier harvest.',
+    succession:null, notes:null },
+  leaf_lettuce:{ family:'aster', pests:['Aphids','Slugs & snails'], diseases:['Downy mildew','Lettuce drop'],
+    companions:['carrot','radish','onion','turnip'], avoid:[],
+    seedStart:'Direct sow 2–4 weeks before last frost, or start indoors 4–6 weeks early for an earlier harvest.',
+    succession:'Resow every 2–3 weeks for continuous baby greens.', notes:null },
+  carrot:{ family:'umbellifer', pests:['Carrot rust fly','Aphids'], diseases:['Alternaria leaf blight'],
+    companions:['tom_large','tom_cherry','tomatillo','onion','green_bean','leaf_lettuce','head_lettuce','radish'], avoid:['dill'],
+    seedStart:'Direct sow after last frost once soil has warmed slightly — carrots dislike being transplanted.',
+    succession:'Resow every 3–4 weeks for a steady supply.', notes:null },
+  chard:{ family:'amaranth', pests:['Leaf miners','Aphids'], diseases:['Cercospora leaf spot'],
+    companions:['onion','garlic','cabbage','napa','green_bean'], avoid:[],
+    seedStart:'Direct sow 2–3 weeks before last frost, or start indoors 3–4 weeks early for a head start.',
+    succession:null, notes:null },
+  sweet_potato:{ family:'morningglory', pests:['Sweet potato weevil','Wireworms'], diseases:['Black rot','Scurf'],
+    companions:[], avoid:[],
+    seedStart:'Grown from slips (rooted sprouts), planted after all frost danger has passed and soil is warm.',
+    succession:null, notes:null },
+  onion:{ family:'allium', pests:['Onion thrips','Onion maggots'], diseases:['Downy mildew','White rot','Botrytis neck rot'],
+    companions:['carrot','chard','cabbage','napa','tom_large','tom_cherry','tomatillo'], avoid:['green_bean'],
+    seedStart:'Start indoors 8–10 weeks before last frost from seed, or plant sets/transplants 2–4 weeks before last frost.',
+    succession:null, notes:null },
+  garlic:{ family:'allium', pests:['Onion thrips','Onion maggots'], diseases:['Downy mildew','White rot','Botrytis neck rot'],
+    companions:['carrot','chard','cabbage','napa','tom_large','tom_cherry','tomatillo'], avoid:['green_bean'],
+    seedStart:'Plant cloves in fall, about 4–6 weeks before the ground freezes, for harvest the following summer.',
+    succession:null, notes:null }
+};
+
+function companionNamesText(ids){
+  if(!ids || !ids.length) return 'None noted.';
+  return ids.map(id=>{ const p = paletteItemById(id); return p ? p.name : id; }).join(', ');
+}
+
+let selectedPaletteId = null;
+
+function uid(p){ return p + '_' + Date.now() + '_' + Math.floor(Math.random()*1000); }
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function daysBetween(a,b){ return Math.round((new Date(b) - new Date(a)) / 86400000); }
+
+function daysSince(dateStr){ return daysBetween(dateStr, todayStr()); }
+
+function dateMinusDays(n){
+  const d = new Date();
+  d.setDate(d.getDate() - (Number(n) || 0));
+  return d.toISOString().slice(0,10);
+}
+
+function nextDueDate(lastDate, freqDays){
+  const d = new Date(lastDate);
+  d.setDate(d.getDate() + Number(freqDays));
+  return d.toISOString().slice(0,10);
+}
+
+function urgencyColor(diff){
+  if(diff <= 0) return '#B5573B';
+  if(diff <= 1) return '#C98A2E';
+  return '#4A5D38';
+}
+
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  const full = h.length === 3 ? h.split('').map(c=>c+c).join('') : h;
+  const n = parseInt(full, 16);
+  return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+}
+
+function rgbToHex(r,g,b){
+  const clamp = v => Math.round(Math.max(0, Math.min(255, v)));
+  return '#' + [r,g,b].map(v=>clamp(v).toString(16).padStart(2,'0')).join('');
+}
+
+// Blends a bed's real color toward the overdue-red (--clay) as its watering
+// due date approaches — pct 0 = just watered (original color), pct 1 = at
+// or past due (fully red). Purely visual "gamification" of the single
+// garden-wide watering schedule; doesn't touch the underlying bed color.
+function blendTowardRed(hex, pct){
+  const p = Math.max(0, Math.min(1, pct));
+  if(p <= 0) return hex;
+  const c = hexToRgb(hex);
+  const target = hexToRgb('#B5573B');
+  return rgbToHex(
+    c.r + (target.r - c.r) * p,
+    c.g + (target.g - c.g) * p,
+    c.b + (target.b - c.b) * p
+  );
+}
+
+// 0 = just watered, 1 = at/past due. Off-season (no active schedule) = 0.
+function bedWaterUrgencyPct(){
+  const status = wateringStatus();
+  if(status.offSeason) return 0;
+  return Math.max(0, Math.min(1, 1 - (status.diff / Math.max(status.freq, 1))));
+}
+
+function defaultWatering(){
+  return { lastWatered: todayStr() };
+}
+
+// Default watering frequency by calendar month (0=Jan ... 11=Dec). null = off season.
+// Only used to SEED data.seasonalFreq on first load — after that, Settings owns it.
+const DEFAULT_SEASONAL_FREQ = {
+  2:4,  // March
+  3:3,  // April
+  4:3,  // May
+  5:2,  // June
+  6:2,  // July
+  7:1,  // August
+  8:2,  // September
+  9:3   // October
+  // Nov, Dec, Jan, Feb: not in table -> off season
+};
+const SEASON_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function defaultSeasonalFreqArray(){
+  return SEASON_MONTH_NAMES.map((_,i)=> DEFAULT_SEASONAL_FREQ.hasOwnProperty(i) ? DEFAULT_SEASONAL_FREQ[i] : null);
+}
+
+function seasonalFreqDays(d){
+  return data.seasonalFreq[d.getMonth()];
+}
+
+function wateringStatus(){
+  const freq = seasonalFreqDays(new Date());
+  if(freq === null || freq === undefined) return { offSeason:true };
+  const nextDue = nextDueDate(data.watering.lastWatered, freq);
+  const diff = daysBetween(todayStr(), nextDue);
+  return { offSeason:false, freq, diff };
+}
+
+function effectivePalette(){
+  return PALETTE.concat(data.customPlants || []);
+}
+
+function paletteItemById(id){
+  return effectivePalette().find(p=>p.id===id);
+}
+
+function getMaturityDaysForId(id){
+  if(MATURITY_DAYS.hasOwnProperty(id)) return MATURITY_DAYS[id];
+  const custom = (data.customPlants||[]).find(p=>p.id===id);
+  return custom ? (custom.maturityDays || DEFAULT_CUSTOM_MATURITY) : DEFAULT_CUSTOM_MATURITY;
+}
+
+function defaultBeds(){
+  return [
+    { id:'corner',  name:'Far-left corner bed', material:'wood',   color:'#8A6A52', width:2,    depth:6, x:0,    y:7.5, plants:[] },
+    { id:'wb1',     name:'White bed 1',   material:'white', color:'#F2F1EA', width:2.75, depth:4, x:2.5,  y:5,   plants:[] },
+    { id:'wb2',     name:'White bed 2', material:'white', color:'#F2F1EA', width:2.75, depth:4, x:5.75, y:5,   plants:[] },
+    { id:'wb3',     name:'White bed 3',  material:'white', color:'#F2F1EA', width:2.75, depth:4, x:2.5,  y:9.5, plants:[] },
+    { id:'wb4',     name:'White bed 4',material:'white', color:'#F2F1EA', width:2.75, depth:4, x:5.75, y:9.5, plants:[] },
+    { id:'gray',    name:'Gray bed',      material:'gray',  color:'#8B979B', width:3,    depth:4, x:9,    y:0,   plants:[] },
+    { id:'sv1',     name:'Silver bed 1',         material:'silver',color:'#C7CDCB', width:3,    depth:9, x:9,    y:4.5, plants:[] },
+    { id:'sv2',     name:'Silver bed 2',         material:'silver',color:'#C7CDCB', width:3,    depth:9, x:12.5, y:4.5, plants:[] }
+  ];
+}
+
+function normalizeData(d){
+  if(!d.schemaVersion) d.schemaVersion = SCHEMA_VERSION;
+  if(!d.watering) d.watering = defaultWatering();
+  if(!d.seasonalFreq) d.seasonalFreq = defaultSeasonalFreqArray();
+  if(!d.customPlants) d.customPlants = [];
+  d.customPlants.forEach(p=>{
+    if(!p.hasOwnProperty('spacingInRow')) p.spacingInRow = null;
+    if(!p.hasOwnProperty('spacingBetweenRows')) p.spacingBetweenRows = null;
+  });
+  if(!d.perennials) d.perennials = [];
+  if(!d.harvests) d.harvests = [];
+  if(!d.gardenTowers) d.gardenTowers = defaultGardenTowers();
+  if(!d.bedArchive) d.bedArchive = [];
+  delete d.zones;
+  d.beds.forEach(b=>{
+    delete b.zone;
+    (b.plants||[]).forEach(p=>{
+      if(!p.plantedDate) p.plantedDate = todayStr();
+      if(!p.maturityDays) p.maturityDays = DEFAULT_CUSTOM_MATURITY;
+      if(!p.hasOwnProperty('paletteId')) p.paletteId = null;
+    });
+  });
+  return d;
+}
+
+async function load(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    data = res ? JSON.parse(res.value) : { schemaVersion: SCHEMA_VERSION, beds: defaultBeds(), watering: defaultWatering(), seasonalFreq: defaultSeasonalFreqArray(), customPlants: [], perennials: [], harvests: [], gardenTowers: defaultGardenTowers(), bedArchive: [] };
+  }catch(e){
+    data = { schemaVersion: SCHEMA_VERSION, beds: defaultBeds(), watering: defaultWatering(), seasonalFreq: defaultSeasonalFreqArray(), customPlants: [], perennials: [], harvests: [], gardenTowers: defaultGardenTowers(), bedArchive: [] };
+  }
+  data = normalizeData(data);
+  render();
+}
+
+async function loadNotesData(){
+  try{
+    const res = await window.storage.get(NOTES_STORAGE_KEY, false);
+    notesData = res ? JSON.parse(res.value) : [];
+  }catch(e){
+    notesData = [];
+  }
+  render();
+}
+
+async function saveNotesData(){
+  try{ await window.storage.set(NOTES_STORAGE_KEY, JSON.stringify(notesData), false); }
+  catch(e){ console.error('notes save failed', e); }
+}
+
+async function save(){
+  try{ await window.storage.set(STORAGE_KEY, JSON.stringify(data), false); }
+  catch(e){ console.error('save failed', e); }
+}
+
+function bedById(id){ return data.beds.find(b=>b.id===id); }
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ---------- MAP VIEW ---------- */
+
+function gardenExtent(){
+  let maxX=0, maxY=0;
+  data.beds.forEach(b=>{
+    maxX = Math.max(maxX, b.x + b.width);
+    maxY = Math.max(maxY, b.y + b.depth);
+  });
+  (data.perennials||[]).forEach(p=>{
+    maxX = Math.max(maxX, p.x + 0.5);
+    maxY = Math.max(maxY, p.y + 0.5);
+  });
+  (data.gardenTowers||[]).forEach(t=>{
+    maxX = Math.max(maxX, t.x + 1.25);
+    maxY = Math.max(maxY, t.y + 1.25);
+  });
+  return { w: maxX + 1, h: maxY + 1 };
+}
+
+function buildMapSvg(){
+  const scale = 26;
+  const ext = gardenExtent();
+  const W = ext.w * scale, H = ext.h * scale;
+  const waterPct = bedWaterUrgencyPct();
+
+  const beds = data.beds.map(b=>{
+    const bx = b.x*scale, by = b.y*scale, bw = b.width*scale, bh = b.depth*scale;
+    const stroke = b.material === 'silver' ? '#8A9391' : (b.material === 'gray' ? '#5F6C70' : (b.material==='wood' ? '#5C4230' : '#C7CDBE'));
+    const fill = blendTowardRed(b.color, waterPct);
+    const plantDots = (b.plants || []).map(p=>{
+      const cx = bx + p.x*bw, cy = by + p.y*bh;
+      return `<circle cx="${cx}" cy="${cy}" r="4.2" fill="${p.color}" stroke="#F5F4EC" stroke-width="1"/>`;
+    }).join('');
+    return `
+      <g class="bed-rect" data-bed-id="${b.id}">
+        <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="2"/>
+        <text x="${bx+bw/2}" y="${by+14}" font-size="10.5" font-weight="600" fill="#242B1D" text-anchor="middle" font-family="Source Sans 3, sans-serif">${escapeHtml(b.name)}</text>
+        <text x="${bx+bw/2}" y="${by+27}" font-size="9.5" fill="#5C6650" text-anchor="middle" font-family="Source Sans 3, sans-serif">${b.width}' × ${b.depth}'</text>
+        ${plantDots}
+      </g>
+    `;
+  }).join('');
+
+  const perennials = (data.perennials||[]).map(p=>{
+    const cx = p.x*scale, cy = p.y*scale;
+    const u = perennialUrgency(p);
+    const color = urgencyColor(u.worst);
+    return `
+      <g class="perennial-marker" data-id="${p.id}">
+        <circle cx="${cx}" cy="${cy}" r="14" fill="${color}" stroke="#F5F4EC" stroke-width="2.5"/>
+        <text x="${cx}" y="${cy+5}" font-size="14" text-anchor="middle">${perennialEmoji(p.type)}</text>
+      </g>
+    `;
+  }).join('');
+
+  const towers = (data.gardenTowers||[]).map(t=>buildGardenTowerMarker(t, scale)).join('');
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+      <rect x="0" y="0" width="${W}" height="${H}" fill="#EDE6D6"/>
+      ${beds}
+      ${perennials}
+      ${towers}
+    </svg>
+  `;
+}
+
+/* ---------- HOME & PLANNING HUB ---------- */
+
+function goHome(){
+  view = 'home';
+  render();
+}
+
+function goToMap(){
+  view = 'map';
+  render();
+}
+
+function goToPlanning(){
+  view = 'planning';
+  render();
+}
+
+function svgFlower(cx, cy, r, petalColor, centerColor){
+  let petals = '';
+  for(let i=0;i<6;i++){
+    const angle = i*60;
+    petals += `<ellipse cx="${cx}" cy="${(cy-r).toFixed(1)}" rx="${(r*0.4).toFixed(1)}" ry="${(r*0.75).toFixed(1)}" fill="${petalColor}" transform="rotate(${angle} ${cx} ${cy})"/>`;
+  }
+  return `<g>${petals}<circle cx="${cx}" cy="${cy}" r="${(r*0.36).toFixed(1)}" fill="${centerColor}"/></g>`;
+}
+
+function svgLeaf(cx, cy, len, angle, color){
+  return `<ellipse cx="${cx}" cy="${cy}" rx="${(len*0.34).toFixed(1)}" ry="${len}" fill="${color}" transform="rotate(${angle} ${cx} ${cy})"/>`;
+}
+
+function renderHomeBackgroundArt(){
+  // Muted botanical decoration: moss/soil leaves with amber/clay (golden &
+  // burnt-orange) blooms, tucked into the corners so the cards stay legible.
+  return `
+    <svg class="home-bg-art" viewBox="0 0 400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <g opacity="0.16">
+        ${svgLeaf(55, 85, 70, -20, '#4A5D38')}
+        ${svgLeaf(25, 145, 55, 15, '#6B4A34')}
+        ${svgLeaf(90, 55, 50, 50, '#2C3A22')}
+      </g>
+      <g opacity="0.22">${svgFlower(65, 185, 46, '#C98A2E', '#B5573B')}</g>
+      <g opacity="0.14">
+        ${svgLeaf(345, 695, 75, 25, '#4A5D38')}
+        ${svgLeaf(375, 635, 55, -25, '#6B4A34')}
+        ${svgLeaf(315, 735, 45, 60, '#2C3A22')}
+      </g>
+      <g opacity="0.24">${svgFlower(350, 615, 50, '#B5573B', '#C98A2E')}</g>
+      <g opacity="0.1">${svgFlower(365, 250, 30, '#C98A2E', '#B5573B')}</g>
+    </svg>
+  `;
+}
+
+function renderHome(){
+  return `
+    <div class="home-screen">
+      ${renderHomeBackgroundArt()}
+      <div class="home-content">
+        <header>
+          <div class="titles">
+            <h1>My Garden</h1>
+            <div class="sub">Choose where to go</div>
+          </div>
+        </header>
+        <div class="home-cards">
+          <button class="home-card" onclick="goToMap()">
+            <div class="home-card-icon">🗺️</div>
+            <div class="home-card-title">Garden Map</div>
+            <div class="home-card-sub">Beds, watering, perennials, tower, harvest log</div>
+          </button>
+          <button class="home-card" onclick="goToPlanning()">
+            <div class="home-card-icon">📋</div>
+            <div class="home-card-title">Planning &amp; Tools</div>
+            <div class="home-card-sub">Plant info, row spacing, notepad, settings</div>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPlanning(){
+  return `
+    <header>
+      <button class="back" onclick="goHome()">← Menu</button>
+      <div class="titles">
+        <h1>Planning &amp; Tools</h1>
+        <div class="sub">Reference info for deciding what and when to plant</div>
+      </div>
+    </header>
+    <div class="home-cards">
+      <button class="home-card" onclick="openPlantInfo()">
+        <div class="home-card-icon">🌱</div>
+        <div class="home-card-title">Plant Info</div>
+        <div class="home-card-sub">Maturity, pests, disease, companions, seed timing</div>
+      </button>
+      <button class="home-card" onclick="openSpacingViewer()">
+        <div class="home-card-icon">📐</div>
+        <div class="home-card-title">Row Spacing Chart</div>
+        <div class="home-card-sub">In-row and between-row spacing by plant</div>
+      </button>
+      <button class="home-card" onclick="openNotes()">
+        <div class="home-card-icon">📓</div>
+        <div class="home-card-title">Notepad</div>
+        <div class="home-card-sub">Dated notes, ruled paper</div>
+      </button>
+      <button class="home-card" onclick="openSettings()">
+        <div class="home-card-icon">⚙</div>
+        <div class="home-card-title">Settings</div>
+        <div class="home-card-sub">Watering schedule, plant list, beds</div>
+      </button>
+    </div>
+    ${renderSpacingViewer()}
+  `;
+}
+
+/* ---------- PLANT INFO BROWSER ---------- */
+
+let plantInfoSelectedId = null;
+
+function openPlantInfo(){
+  view = 'plantInfo';
+  plantInfoSelectedId = null;
+  render();
+}
+
+function closePlantInfoToPlanning(){
+  view = 'planning';
+  plantInfoSelectedId = null;
+  render();
+}
+
+function selectPlantInfo(id){
+  plantInfoSelectedId = id;
+  render();
+}
+
+function backToPlantInfoList(){
+  plantInfoSelectedId = null;
+  render();
+}
+
+function renderPlantInfo(){
+  if(plantInfoSelectedId) return renderPlantInfoDetail(plantInfoSelectedId);
+
+  const sorted = effectivePalette().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const rows = sorted.map(p=>{
+    const info = PLANT_INFO[p.id];
+    const maturity = getMaturityDaysForId(p.id);
+    const subParts = [];
+    if(info && info.family) subParts.push(FAMILY_LABELS[info.family] || info.family);
+    if(maturity) subParts.push(maturity + ' days to maturity');
+    return `
+      <button class="plant-info-row" onclick="selectPlantInfo('${p.id}')">
+        <span class="swatch" style="background:${p.color}"></span>
+        <div class="info">
+          <div class="name">${escapeHtml(p.name)}</div>
+          <div class="dims">${subParts.length ? subParts.join(' · ') : 'No reference info yet'}</div>
+        </div>
+        <span class="chev">›</span>
+      </button>
+    `;
+  }).join('');
+
+  return `
+    <header>
+      <button class="back" onclick="closePlantInfoToPlanning()">← Planning</button>
+      <div class="titles">
+        <h1>Plant Info</h1>
+        <div class="sub">Tap a plant for growing notes</div>
+      </div>
+    </header>
+    <div class="bed-list" style="margin-top:16px;">${rows}</div>
+  `;
+}
+
+function renderPlantInfoDetail(id){
+  const item = paletteItemById(id);
+  const info = PLANT_INFO[id];
+  const maturity = getMaturityDaysForId(id);
+  return `
+    <header>
+      <button class="back" onclick="backToPlantInfoList()">← Back</button>
+      <div class="titles">
+        <h1>${item ? escapeHtml(item.name) : 'Plant'}</h1>
+        <div class="sub">${info && info.family ? (FAMILY_LABELS[info.family] || info.family) : 'Reference info'}</div>
+      </div>
+    </header>
+    <div class="settings-section">
+      <h2>Days to maturity</h2>
+      <div class="hint">${maturity ? maturity + ' days from planting to harvest (typical).' : 'Not set.'}</div>
+    </div>
+    ${info ? `
+      <div class="settings-section">
+        <h2>Common pests</h2>
+        <div class="hint">${info.pests.length ? escapeHtml(info.pests.join(', ')) : 'None commonly reported.'}</div>
+      </div>
+      <div class="settings-section">
+        <h2>Common diseases</h2>
+        <div class="hint">${info.diseases.length ? escapeHtml(info.diseases.join(', ')) : 'None commonly reported.'}</div>
+      </div>
+      <div class="settings-section">
+        <h2>Seed starting</h2>
+        <div class="hint">${escapeHtml(info.seedStart)}</div>
+      </div>
+      ${info.succession ? `
+      <div class="settings-section">
+        <h2>Succession planting</h2>
+        <div class="hint">${escapeHtml(info.succession)}</div>
+      </div>` : ''}
+      <div class="settings-section">
+        <h2>Good neighbors</h2>
+        <div class="hint">${escapeHtml(companionNamesText(info.companions))}</div>
+      </div>
+      <div class="settings-section">
+        <h2>Avoid planting near</h2>
+        <div class="hint">${escapeHtml(companionNamesText(info.avoid))}</div>
+      </div>
+      ${info.notes ? `
+      <div class="settings-section">
+        <h2>Notes</h2>
+        <div class="hint">${escapeHtml(info.notes)}</div>
+      </div>` : ''}
+    ` : `
+      <div class="settings-section">
+        <div class="hint">No reference info recorded for this plant yet.</div>
+      </div>
+    `}
+  `;
+}
+
+function renderMap(){
+  return `
+    <header>
+      <button class="back" onclick="goHome()">☰ Menu</button>
+      <div class="titles">
+        <h1>Garden Map</h1>
+        <div class="sub">Tap a bed to plan what goes in it</div>
+      </div>
+      <button class="util-btn ${placingPerennial ? 'active' : ''}" onclick="togglePlacingPerennial()">${placingPerennial ? '✕' : '🌳'}</button>
+      <button class="util-btn" onclick="openHarvestWindow()">🧺</button>
+    </header>
+    <div class="map-wrap">${buildMapSvg()}</div>
+    ${placingPerennial ? `<div class="palette-hint" style="margin:8px 20px 0;">Tap open ground on the map to place a perennial</div>` : ''}
+    ${renderWateringBar()}
+    <div class="legend-note">Beds are spaced out and aligned for clarity rather than matched to their real position in the yard. Tap a bed to plan what's in it, or tap 🌳 to add a permanent tree, shrub, or vine anywhere on the map. Rename, resize, or add beds from Menu → Planning &amp; Tools → Settings.</div>
+    <div class="actions">
+      <button class="btn-export" onclick="exportMapPng()">Export map as image</button>
+    </div>
+    ${renderWateringModal()}
+    ${renderPerennialPopup()}
+    ${renderHarvestWindow()}
+    ${renderGardenTowerPopup()}
+  `;
+}
+
+function exportMapPng(){
+  const svgEl2 = document.querySelector('.map-wrap svg');
+  const svgString = new XMLSerializer().serializeToString(svgEl2);
+  const img = new Image();
+  const blob = new Blob([svgString], {type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  img.onload = function(){
+    const vb = svgEl2.viewBox.baseVal;
+    const exportScale = 2.5;
+    const canvas = document.createElement('canvas');
+    canvas.width = vb.width * exportScale;
+    canvas.height = vb.height * exportScale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#EDE6D6';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.download = 'garden-map.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+  img.src = url;
+}
+
+function openBed(id){
+  activeBedId = id;
+  view = 'bed';
+  selectedPaletteId = null;
+  paletteOpen = false;
+  growthOpen = false;
+  spacingFillOpen = false;
+  spacingFillPlantId = null;
+  pendingPlacement = null;
+  archivingBedOpen = false;
+  render();
+}
+
+function backToMap(){
+  view = 'map';
+  activeBedId = null;
+  selectedPaletteId = null;
+  paletteOpen = false;
+  growthOpen = false;
+  wateringInfoOpen = false;
+  spacingFillOpen = false;
+  spacingFillPlantId = null;
+  pendingPlacement = null;
+  archivingBedOpen = false;
+  render();
+}
+
+/* ---------- PLANT PALETTE ---------- */
+
+let paletteOpen = false;
+
+function togglePalettePopout(){
+  paletteOpen = !paletteOpen;
+  render();
+}
+
+function closePalettePopout(){
+  paletteOpen = false;
+  render();
+}
+
+function choosePaletteItem(id){
+  selectedPaletteId = id;
+  paletteOpen = false;
+  render();
+}
+
+function clearPaletteSelection(){
+  selectedPaletteId = null;
+  render();
+}
+
+function renderPlantBar(){
+  const selected = selectedPaletteId && selectedPaletteId !== 'custom' ? paletteItemById(selectedPaletteId) : null;
+  const isCustom = selectedPaletteId === 'custom';
+  const dotColor = selected ? selected.color : (isCustom ? 'var(--amber-soft)' : 'var(--amber-soft)');
+  const label = selected ? selected.name : (isCustom ? 'Custom' : 'Plants');
+  return `
+    <div class="plant-select-bar">
+      <button class="plant-select-btn" onclick="togglePalettePopout()">
+        <span class="dot" style="background:${dotColor}"></span>${escapeHtml(label)}
+      </button>
+      ${selectedPaletteId ? `<button class="plant-select-clear" onclick="clearPaletteSelection()">Clear</button>` : ''}
+      <button class="spacing-fill-btn" onclick="openSpacingFill()">📐 Auto-fill</button>
+    </div>
+    ${selected ? `<div class="palette-hint">Tap the bed to place ${escapeHtml(selected.name)} — tap again for more</div>` : ''}
+    ${isCustom ? `<div class="palette-hint">Tap the bed to name and color a custom plant</div>` : ''}
+  `;
+}
+
+function renderPlantPopout(){
+  if(!paletteOpen) return '';
+  const sorted = effectivePalette().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const items = sorted.map(p=>`
+    <button class="plant-popout-item" onclick="choosePaletteItem('${p.id}')">
+      <span class="dot" style="background:${p.color}"></span>${escapeHtml(p.name)}
+    </button>
+  `).join('');
+  return `
+    <div class="plant-popout-backdrop" onclick="if(event.target===this) closePalettePopout()">
+      <div class="plant-popout">
+        <h3>Choose a plant</h3>
+        <div class="plant-popout-list">
+          ${items}
+          <button class="plant-popout-item custom" onclick="choosePaletteItem('custom')">+ Custom plant</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- AUTO-FILL BY ROW SPACING ---------- */
+// Sandboxed grid-fill tool: previews a spacing-based planting grid for
+// the active bed (never touching bed.plants until confirmed), then on
+// "Place" replaces the bed's current plants with the computed grid.
+// Rows are staggered (offset every other row) for denser packing, a
+// common approach in dense/square-foot planting guides.
+
+let spacingFillOpen = false;
+let spacingFillPlantId = null;
+
+function openSpacingFill(){
+  spacingFillOpen = true;
+  spacingFillPlantId = null;
+  render();
+}
+
+function closeSpacingFill(){
+  spacingFillOpen = false;
+  spacingFillPlantId = null;
+  render();
+}
+
+function selectSpacingFillPlant(id){
+  spacingFillPlantId = id;
+  render();
+}
+
+function backToSpacingFillList(){
+  spacingFillPlantId = null;
+  render();
+}
+
+// How many points of `spacing` fit along a run of `lengthIn`, assuming
+// a half-spacing margin on each end (standard garden spacing-chart convention).
+function computeFillCount(lengthIn, spacing){
+  if(!spacing || spacing <= 0) spacing = 12;
+  if(lengthIn <= spacing) return 1;
+  return Math.max(1, Math.floor((lengthIn - spacing) / spacing) + 1);
+}
+
+function computeFillPositions(lengthIn, spacing, count){
+  if(count <= 1) return [lengthIn/2];
+  const margin = Math.min(spacing/2, lengthIn/2);
+  const usable = lengthIn - margin*2;
+  const step = usable / (count - 1);
+  const arr = [];
+  for(let i=0;i<count;i++) arr.push(margin + i*step);
+  return arr;
+}
+
+function computeSpacingFillGrid(bed, plantId){
+  const item = paletteItemById(plantId);
+  if(!item) return null;
+  const sp = getSpacingForId(plantId);
+  if(!sp || !sp.inRow || !sp.betweenRows) return null;
+  const widthIn = bed.width * 12;
+  const depthIn = bed.depth * 12;
+  const numRows = computeFillCount(depthIn, sp.betweenRows);
+  const numPerRow = computeFillCount(widthIn, sp.inRow);
+  const rowYs = computeFillPositions(depthIn, sp.betweenRows, numRows);
+  const colXs = computeFillPositions(widthIn, sp.inRow, numPerRow);
+  const stepX = colXs.length > 1 ? (colXs[1] - colXs[0]) : 0;
+  const minX = colXs[0], maxX = colXs[colXs.length - 1];
+  const points = [];
+  rowYs.forEach((yIn, ri)=>{
+    const offset = (ri % 2 === 1) ? stepX/2 : 0;
+    colXs.forEach(xIn=>{
+      let x = xIn + offset;
+      if(x > maxX) x = maxX;
+      points.push({ x: Math.min(1, Math.max(0, x / widthIn)), y: Math.min(1, Math.max(0, yIn / depthIn)) });
+    });
+  });
+  return { item, spacing: sp, count: points.length, points };
+}
+
+function saveSpacingFillPlantSpacing(id){
+  const inRowInput = document.getElementById('fillSpacingInRow');
+  const betweenRowsInput = document.getElementById('fillSpacingBetweenRows');
+  const inRow = inRowInput ? Number(inRowInput.value) : 0;
+  const betweenRows = betweenRowsInput ? Number(betweenRowsInput.value) : 0;
+  if(!inRow || !betweenRows) return;
+  const custom = (data.customPlants||[]).find(p=>p.id===id);
+  if(custom){
+    custom.spacingInRow = inRow;
+    custom.spacingBetweenRows = betweenRows;
+    save();
+  }
+  render();
+}
+
+function confirmSpacingFill(){
+  const bed = bedById(activeBedId);
+  const grid = computeSpacingFillGrid(bed, spacingFillPlantId);
+  if(!grid) return;
+  const today = todayStr();
+  const maturityDays = getMaturityDaysForId(grid.item.id);
+  bed.plants = grid.points.map(pt=>({
+    id: uid('pl'), name: grid.item.name, color: grid.item.color,
+    x: pt.x, y: pt.y, paletteId: grid.item.id, plantedDate: today, maturityDays
+  }));
+  spacingFillOpen = false;
+  spacingFillPlantId = null;
+  save(); render();
+}
+
+function buildSpacingFillPreviewSvg(bed, grid){
+  const scale = 40;
+  const w = bed.width * scale;
+  const h = bed.depth * scale;
+  const dots = grid.points.map(pt=>{
+    const cx = pt.x * w, cy = pt.y * h;
+    return `<circle cx="${cx}" cy="${cy}" r="5" fill="${grid.item.color}" stroke="#F5F4EC" stroke-width="1.5"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" style="max-height:210px; width:auto; max-width:100%; display:block; margin:0 auto;"><rect x="0" y="0" width="${w}" height="${h}" fill="#F5F4EC" stroke="#D6DCC9" stroke-width="1"/>${dots}</svg>`;
+}
+
+function renderSpacingFillPopup(){
+  if(!spacingFillOpen) return '';
+  const bed = bedById(activeBedId);
+
+  if(!spacingFillPlantId){
+    const sorted = effectivePalette().slice().sort((a,b)=>a.name.localeCompare(b.name));
+    const items = sorted.map(p=>{
+      const has = !!getSpacingForId(p.id);
+      return `
+        <button class="plant-popout-item" onclick="selectSpacingFillPlant('${p.id}')">
+          <span class="dot" style="background:${p.color}"></span>${escapeHtml(p.name)}${has ? '' : ' — add spacing'}
+        </button>
+      `;
+    }).join('');
+    return `
+      <div class="plant-popout-backdrop" onclick="if(event.target===this) closeSpacingFill()">
+        <div class="plant-popout">
+          <h3>Auto-fill by spacing</h3>
+          <div class="plant-popout-list">${items}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const grid = computeSpacingFillGrid(bed, spacingFillPlantId);
+  if(!grid){
+    const item = paletteItemById(spacingFillPlantId);
+    const isCustom = !!(data.customPlants||[]).find(p=>p.id===spacingFillPlantId);
+    return `
+      <div class="plant-popout-backdrop" onclick="if(event.target===this) closeSpacingFill()">
+        <div class="plant-popout" style="height:auto; min-height:0;">
+          <h3>${item ? escapeHtml(item.name) : 'Plant'}</h3>
+          ${isCustom ? `
+            <div class="hint" style="margin:0 14px 8px;">No spacing set for this plant yet — add it here to auto-fill.</div>
+            <div style="display:flex; gap:12px; margin:0 14px 4px;">
+              <div class="field" style="flex:1; margin-bottom:0;">
+                <label>In-row (in)</label>
+                <input id="fillSpacingInRow" type="number" min="1">
+              </div>
+              <div class="field" style="flex:1; margin-bottom:0;">
+                <label>Between rows (in)</label>
+                <input id="fillSpacingBetweenRows" type="number" min="1">
+              </div>
+            </div>
+            <div class="modal-actions" style="margin:10px 14px;">
+              <button class="btn-cancel" onclick="backToSpacingFillList()">← Back</button>
+              <button class="btn-save" onclick="saveSpacingFillPlantSpacing('${spacingFillPlantId}')">Save & preview</button>
+            </div>
+          ` : `
+            <div class="growth-empty">No spacing data for this plant.</div>
+            <div class="modal-actions" style="margin:10px 14px;">
+              <button class="btn-cancel" onclick="backToSpacingFillList()">← Back</button>
+            </div>
+          `}
+        </div>
+      </div>
+    `;
+  }
+
+  const existingCount = bed.plants.length;
+  const rotationWarning = checkRotationWarning(activeBedId, spacingFillPlantId);
+  return `
+    <div class="plant-popout-backdrop" onclick="if(event.target===this) closeSpacingFill()">
+      <div class="plant-popout" style="height:auto; min-height:0; max-height:88vh; overflow-y:auto;">
+        <h3><span class="dot" style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${grid.item.color}; margin-right:8px; vertical-align:middle;"></span>${escapeHtml(grid.item.name)}</h3>
+        <div class="fill-count-line">${grid.spacing.inRow}" in-row × ${grid.spacing.betweenRows}" between rows — fits <strong>${grid.count}</strong> plant${grid.count===1?'':'s'} in this bed</div>
+        <div class="fill-preview-wrap">${buildSpacingFillPreviewSvg(bed, grid)}</div>
+        ${rotationWarning ? `<div class="warning-item" style="margin:0 14px 8px;">⚠ ${escapeHtml(rotationWarning)}</div>` : ''}
+        ${existingCount ? `<div class="hint" style="margin:0 14px 8px;">This bed currently has ${existingCount} plant${existingCount===1?'':'s'} placed — placing will replace ${existingCount===1?'it':'them'} with this grid.</div>` : ''}
+        <div class="modal-actions" style="margin:0 14px 4px;">
+          <button class="btn-cancel" onclick="backToSpacingFillList()">← Back</button>
+          <button class="btn-save" onclick="confirmSpacingFill()">Place ${grid.count}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- GROWTH TRACKER ---------- */
+
+let growthOpen = false;
+
+function toggleGrowthPopout(){
+  growthOpen = !growthOpen;
+  render();
+}
+
+function renderGrowthPopout(){
+  if(!growthOpen) return '';
+  const bed = bedById(activeBedId);
+  const items = (bed.plants || []).slice().sort((a,b)=>{
+    const ra = (a.maturityDays||DEFAULT_CUSTOM_MATURITY) - daysSince(a.plantedDate);
+    const rb = (b.maturityDays||DEFAULT_CUSTOM_MATURITY) - daysSince(b.plantedDate);
+    return ra - rb;
+  });
+  const rows = items.length ? items.map(p=>{
+    const age = daysSince(p.plantedDate);
+    const mat = p.maturityDays || DEFAULT_CUSTOM_MATURITY;
+    const pct = Math.min(100, Math.round((age/mat)*100));
+    const ready = age >= mat;
+    return `
+      <div class="growth-item">
+        <div class="growth-item-top">
+          <span><span class="g-dot" style="background:${p.color}"></span>${escapeHtml(p.name)}</span>
+          <span class="g-days">${ready ? 'Ready' : `day ${age} of ${mat}`}</span>
+        </div>
+        <div class="growth-bar-track"><div class="growth-bar-fill ${ready?'ready':''}" style="width:${pct}%"></div></div>
+      </div>
+    `;
+  }).join('') : `<div class="growth-empty">No plants in this bed yet.</div>`;
+  return `
+    <div class="plant-popout-backdrop" onclick="if(event.target===this) toggleGrowthPopout()">
+      <div class="plant-popout">
+        <h3>Days growing</h3>
+        <div class="growth-list">${rows}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- WATERING (single garden-wide, seasonal schedule) ---------- */
+
+let wateringInfoOpen = false;
+
+function openWateringInfo(){ wateringInfoOpen = true; render(); }
+function closeWateringInfo(){ wateringInfoOpen = false; render(); }
+
+function waterNow(){
+  data.watering.lastWatered = todayStr();
+  save(); render();
+}
+
+function renderWateringBar(){
+  const status = wateringStatus();
+  const color = status.offSeason ? '#9AA3A0' : urgencyColor(status.diff);
+  const label = status.offSeason
+    ? 'Off season — no schedule'
+    : `every ${status.freq}d · ${status.diff <= 0 ? (status.diff < 0 ? `overdue ${-status.diff}d` : 'water today') : (status.diff <= 1 ? 'due tomorrow' : `in ${status.diff}d`)}`;
+  return `
+    <div class="watering-bar">
+      <button class="watering-chip" onclick="openWateringInfo()">
+        <span class="watering-drop" style="background:${color}"></span>
+        <span>
+          <div class="zt">Garden watering</div>
+          <div class="zs">${label}</div>
+        </span>
+      </button>
+    </div>
+  `;
+}
+
+function renderWateringModal(){
+  if(!wateringInfoOpen) return '';
+  const status = wateringStatus();
+  const rows = SEASON_MONTH_NAMES.map((name,i)=>{
+    const f = data.seasonalFreq[i];
+    const freq = (f===null || f===undefined) ? 'off season' : `every ${f}d`;
+    const isCurrent = i === new Date().getMonth();
+    return `<tr class="${isCurrent?'current':''}"><td>${name}</td><td>${freq}</td></tr>`;
+  }).join('');
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeWateringInfo()">
+      <div class="watering-sheet">
+        <h2>Garden watering</h2>
+        <div class="field">
+          <label>Status</label>
+          <div>${status.offSeason ? 'Off season — no schedule right now' : (status.diff <= 0 ? 'Due now' : `Next due in ${status.diff} day${status.diff===1?'':'s'}`)}</div>
+          <small>Last watered ${data.watering.lastWatered} · edit the schedule in ⚙ Settings</small>
+        </div>
+        <table class="season-table">${rows}</table>
+        <div class="modal-actions" style="margin-top:14px;">
+          <button class="btn-cancel" onclick="closeWateringInfo()">Close</button>
+          <button class="btn-save" onclick="waterNow()">Water now</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- SETTINGS PAGE ---------- */
+
+function openSettings(){
+  view = 'settings';
+  newPlantColor = PLANT_COLORS[0];
+  render();
+}
+
+function closeSettingsToPlanning(){
+  view = 'planning';
+  render();
+}
+
+function updateMonthFreq(i, value){
+  const n = Number(value);
+  data.seasonalFreq[i] = (value === '' || isNaN(n) || n <= 0) ? null : Math.round(n);
+  save(); render();
+}
+
+function selectNewPlantColor(c){
+  newPlantColor = c;
+  render();
+}
+
+function addCustomPlant(){
+  const nameInput = document.getElementById('newPlantName');
+  const maturityInput = document.getElementById('newPlantMaturity');
+  const inRowInput = document.getElementById('newPlantSpacingInRow');
+  const betweenRowsInput = document.getElementById('newPlantSpacingBetweenRows');
+  const name = nameInput.value.trim();
+  if(!name) return;
+  const maturityDays = Number(maturityInput.value) || DEFAULT_CUSTOM_MATURITY;
+  const spacingInRow = inRowInput && inRowInput.value ? Number(inRowInput.value) : null;
+  const spacingBetweenRows = betweenRowsInput && betweenRowsInput.value ? Number(betweenRowsInput.value) : null;
+  data.customPlants.push({ id: uid('cp'), name, color: newPlantColor || PLANT_COLORS[0], maturityDays, spacingInRow, spacingBetweenRows });
+  newPlantColor = PLANT_COLORS[0];
+  save(); render();
+}
+
+function deleteCustomPlant(id){
+  data.customPlants = data.customPlants.filter(p=>p.id!==id);
+  save(); render();
+}
+
+function updateBedField(id, field, value){
+  const bed = bedById(id);
+  if(field === 'name'){
+    bed.name = value;
+  } else {
+    const n = Number(value);
+    bed[field] = (isNaN(n) || n <= 0) ? bed[field] : n;
+  }
+  save(); render();
+}
+
+function addBed(){
+  const ext = gardenExtent();
+  data.beds.push({
+    id: uid('bed'), name:'New bed', material:'wood', color:'#8A6A52',
+    width:3, depth:4, x: Math.round(ext.w), y:0, plants:[]
+  });
+  save(); render();
+}
+
+function deleteBed(id){
+  const bed = bedById(id);
+  if(data.beds.length <= 1) return;
+  if(!confirm(`Delete "${bed.name}"? This removes ${bed.plants.length} placed plant${bed.plants.length===1?'':'s'} with it.`)) return;
+  data.beds = data.beds.filter(b=>b.id!==id);
+  save(); render();
+}
+
+function renderSettings(){
+  const customPlantsHtml = (data.customPlants||[]).length
+    ? data.customPlants.map(p=>`
+        <div class="custom-plant-row">
+          <span class="dot" style="background:${p.color}"></span>
+          <span class="name">${escapeHtml(p.name)} <span style="font-weight:400; color:var(--ink-soft);">· ${p.maturityDays}d${(p.spacingInRow||p.spacingBetweenRows) ? ` · ${p.spacingInRow||'?'}"×${p.spacingBetweenRows||'?'}"` : ''}</span></span>
+          <button class="del-btn" onclick="deleteCustomPlant('${p.id}')">×</button>
+        </div>
+      `).join('')
+    : `<div class="hint">No custom plants added yet.</div>`;
+
+  const monthRows = SEASON_MONTH_NAMES.map((name,i)=>{
+    const val = data.seasonalFreq[i];
+    const off = val === null || val === undefined;
+    return `
+      <div class="month-freq-row ${off?'off':''}">
+        <span class="mfr-label">${name}</span>
+        <span><input type="number" min="0" placeholder="off" value="${off?'':val}" onchange="updateMonthFreq(${i}, this.value)"><span class="mfr-unit">days</span></span>
+      </div>
+    `;
+  }).join('');
+
+  const bedCards = data.beds.map(b=>`
+    <div class="bed-edit-card">
+      <input type="text" value="${escapeHtml(b.name)}" onchange="updateBedField('${b.id}','name',this.value)">
+      <div class="bed-edit-grid">
+        <div><label>Width (ft)</label><input type="number" step="0.25" min="0.25" value="${b.width}" onchange="updateBedField('${b.id}','width',this.value)"></div>
+        <div><label>Depth (ft)</label><input type="number" step="0.25" min="0.25" value="${b.depth}" onchange="updateBedField('${b.id}','depth',this.value)"></div>
+        <div><label>X pos</label><input type="number" step="0.25" min="0" value="${b.x}" onchange="updateBedField('${b.id}','x',this.value)"></div>
+        <div><label>Y pos</label><input type="number" step="0.25" min="0" value="${b.y}" onchange="updateBedField('${b.id}','y',this.value)"></div>
+      </div>
+      <div class="bed-edit-footer">
+        <button onclick="deleteBed('${b.id}')">Delete bed</button>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <header>
+      <button class="back" onclick="closeSettingsToPlanning()">← Planning</button>
+      <div class="titles">
+        <h1>Settings</h1>
+        <div class="sub">Watering schedule, plant list, and beds</div>
+      </div>
+    </header>
+
+    <div class="settings-section">
+      <h2>Watering schedule</h2>
+      <div class="hint">Days between waterings by month. Leave blank for off-season.</div>
+      <div class="month-freq-grid">${monthRows}</div>
+    </div>
+
+    <div class="settings-section">
+      <h2>Common plants</h2>
+      <div class="hint">Added here shows up alongside the built-in list when placing plants.</div>
+      ${customPlantsHtml}
+      <div class="add-plant-form">
+        <label>Name</label>
+        <input type="text" id="newPlantName" placeholder="e.g. Squash (Butternut)">
+        <div class="apf-row">
+          <div>
+            <label>Color</label>
+            <div class="color-row">
+              ${PLANT_COLORS.map(c=>`<div class="color-swatch ${c===newPlantColor?'sel':''}" style="background:${c}" onclick="selectNewPlantColor('${c}')"></div>`).join('')}
+            </div>
+          </div>
+          <div>
+            <label>Maturity (days)</label>
+            <input type="number" id="newPlantMaturity" min="1" value="60">
+          </div>
+        </div>
+        <div class="apf-row" style="margin-top:10px;">
+          <div>
+            <label>In-row spacing (in)</label>
+            <input type="number" id="newPlantSpacingInRow" min="1" placeholder="optional">
+          </div>
+          <div>
+            <label>Between rows (in)</label>
+            <input type="number" id="newPlantSpacingBetweenRows" min="1" placeholder="optional">
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top:12px;">
+          <button class="btn-save" style="flex:none; padding:10px 18px;" onclick="addCustomPlant()">Add plant</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h2>Garden beds</h2>
+      <div class="hint">Change dimensions/position, or add a new bed.</div>
+      ${bedCards}
+      <button class="add-bed-btn" onclick="addBed()">+ Add bed</button>
+    </div>
+  `;
+}
+
+/* ---------- ROW SPACING CHART ---------- */
+
+let spacingViewerOpen = false;
+let spacingViewerSelectedId = null;
+
+function openSpacingViewer(){
+  spacingViewerOpen = true;
+  spacingViewerSelectedId = null;
+  render();
+}
+
+function closeSpacingViewer(){
+  spacingViewerOpen = false;
+  spacingViewerSelectedId = null;
+  render();
+}
+
+function selectSpacingPlant(id){
+  spacingViewerSelectedId = id;
+  render();
+}
+
+function backToSpacingList(){
+  spacingViewerSelectedId = null;
+  render();
+}
+
+function renderSpacingViewer(){
+  if(!spacingViewerOpen) return '';
+
+  if(spacingViewerSelectedId){
+    const p = paletteItemById(spacingViewerSelectedId);
+    if(!p) { spacingViewerSelectedId = null; }
+    else {
+      const sp = getSpacingForId(p.id);
+      return `
+        <div class="plant-popout-backdrop" onclick="if(event.target===this) closeSpacingViewer()">
+          <div class="plant-popout" style="height:auto; min-height:0;">
+            <h3><span class="dot" style="display:inline-block; width:12px; height:12px; border-radius:50%; background:${p.color}; margin-right:8px; vertical-align:middle;"></span>${escapeHtml(p.name)}</h3>
+            <div style="padding:4px 14px 14px;">
+              ${sp ? `
+                <div class="growth-item" style="margin-bottom:8px;">
+                  <div class="growth-item-top"><span>In-row spacing</span><span class="g-days">${sp.inRow ? sp.inRow+'"' : '—'}</span></div>
+                </div>
+                <div class="growth-item">
+                  <div class="growth-item-top"><span>Between rows</span><span class="g-days">${sp.betweenRows ? sp.betweenRows+'"' : '—'}</span></div>
+                </div>
+              ` : `<div class="growth-empty">No spacing set for this plant yet. Add it from the custom plant form in Settings.</div>`}
+            </div>
+            <div class="modal-actions" style="margin:0 14px 4px;">
+              <button class="btn-cancel" onclick="backToSpacingList()">← Back</button>
+              <button class="btn-save" onclick="closeSpacingViewer()">Close</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  const sorted = effectivePalette().slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const items = sorted.map(p=>`
+    <button class="plant-popout-item" onclick="selectSpacingPlant('${p.id}')">
+      <span class="dot" style="background:${p.color}"></span>${escapeHtml(p.name)}
+    </button>
+  `).join('');
+  return `
+    <div class="plant-popout-backdrop" onclick="if(event.target===this) closeSpacingViewer()">
+      <div class="plant-popout">
+        <h3>Row spacing — tap a plant</h3>
+        <div class="plant-popout-list">${items}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- NOTEPAD ---------- */
+
+function openNotes(){
+  view = 'notes';
+  editingNote = null;
+  render();
+  if(notesData === null) loadNotesData();
+}
+
+function closeNotesToPlanning(){
+  view = 'planning';
+  editingNote = null;
+  render();
+}
+
+function startNewNote(){
+  editingNote = { isNew:true, date: todayStr(), text:'' };
+  render();
+  const ta = document.getElementById('noteTextarea');
+  if(ta) ta.focus();
+}
+
+function openNoteForEdit(id){
+  const n = notesData.find(x=>x.id===id);
+  if(n) editingNote = { isNew:false, id:n.id, date:n.date, text:n.text };
+  render();
+}
+
+function cancelNoteEdit(){
+  editingNote = null;
+  render();
+}
+
+function saveNote(){
+  const text = document.getElementById('noteTextarea').value;
+  if(!text.trim()){ editingNote = null; render(); return; }
+  if(editingNote.isNew){
+    notesData.push({ id: uid('note'), date: editingNote.date, createdAt: Date.now(), text });
+  } else {
+    const n = notesData.find(x=>x.id===editingNote.id);
+    if(n) n.text = text;
+  }
+  editingNote = null;
+  saveNotesData();
+  render();
+}
+
+function deleteNote(id){
+  if(!confirm('Delete this note? This can\'t be undone.')) return;
+  notesData = notesData.filter(n=>n.id!==id);
+  editingNote = null;
+  saveNotesData();
+  render();
+}
+
+function renderNotes(){
+  const header = `
+    <header>
+      <button class="back" onclick="closeNotesToPlanning()">← Planning</button>
+      <div class="titles">
+        <h1>Garden Notepad</h1>
+        <div class="sub">Dated notes, saved for later reference</div>
+      </div>
+    </header>
+  `;
+
+  if(notesData === null){
+    return header + `<div style="padding:60px 20px; text-align:center; color:var(--ink-soft);">Loading notes...</div>`;
+  }
+
+  if(editingNote){
+    const dateLabel = new Date(editingNote.date + 'T00:00:00').toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+    return header + `
+      <div class="notepad-editor">
+        <div class="notepad-editor-header">
+          <span class="note-editor-date">${dateLabel}</span>
+        </div>
+        <textarea id="noteTextarea" class="notepad-textarea" placeholder="Write today's note...">${escapeHtml(editingNote.text)}</textarea>
+        <div class="notepad-editor-actions">
+          ${editingNote.isNew ? '' : `<button class="btn-delete" onclick="deleteNote('${editingNote.id}')">Delete</button>`}
+          <button class="btn-cancel" onclick="cancelNoteEdit()">Cancel</button>
+          <button class="btn-save" onclick="saveNote()">Save</button>
+        </div>
+      </div>
+    `;
+  }
+
+  const sorted = notesData.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  const list = sorted.length
+    ? `<div class="notepad-list">${sorted.map(n=>`
+        <button class="note-card" onclick="openNoteForEdit('${n.id}')">
+          <div class="note-date">${n.date}</div>
+          <div class="note-preview">${escapeHtml(n.text)}</div>
+        </button>
+      `).join('')}</div>`
+    : `<div class="note-empty">No notes yet. Tap below to write your first one.</div>`;
+
+  return header + list + `<button class="notes-fab" onclick="startNewNote()">+ New note</button>`;
+}
+
+/* ---------- PERENNIALS (permanent plants — trees, shrubs — placed directly on the map) ---------- */
+
+const PERENNIAL_TYPES = [
+  { id:'tree',   label:'Tree',             emoji:'🌳' },
+  { id:'shrub',  label:'Shrub',            emoji:'🌿' },
+  { id:'vine',   label:'Vine',             emoji:'🍇' },
+  { id:'flower', label:'Perennial flower', emoji:'🌸' },
+  { id:'other',  label:'Other',            emoji:'🪴' }
+];
+
+function perennialEmoji(type){
+  const t = PERENNIAL_TYPES.find(x=>x.id===type);
+  return t ? t.emoji : '🪴';
+}
+
+function perennialUrgency(p){
+  const today = todayStr();
+  const waterDiff = daysBetween(today, nextDueDate(p.lastWatered, p.waterDays));
+  const feedDiff = daysBetween(today, nextDueDate(p.lastFed, p.feedDays));
+  return { waterDiff, feedDiff, worst: Math.min(waterDiff, feedDiff) };
+}
+
+function perennialAgeYears(p){
+  return p.ageYearsAtAdd + Math.floor(daysSince(p.dateAdded) / 365);
+}
+
+function statText(diff, label){
+  if(diff <= 0){
+    return `<span class="stat-text due">${label} overdue${diff<0 ? ' by '+(-diff)+'d':''}</span>`;
+  }
+  if(diff <= 1){
+    return `<span class="stat-text soon">${label} today or tomorrow</span>`;
+  }
+  return `<span class="stat-text">${label} in ${diff}d</span>`;
+}
+
+function togglePlacingPerennial(){
+  placingPerennial = !placingPerennial;
+  render();
+}
+
+function openPerennialPopup(id){
+  perennialPopup = { id, isNew:false };
+  render();
+}
+
+function closePerennialPopup(){
+  perennialPopup = null;
+  render();
+}
+
+function waterPerennial(id){
+  const p = data.perennials.find(x=>x.id===id);
+  if(p) p.lastWatered = todayStr();
+  save(); render();
+}
+
+function feedPerennial(id){
+  const p = data.perennials.find(x=>x.id===id);
+  if(p) p.lastFed = todayStr();
+  save(); render();
+}
+
+function deletePerennial(id){
+  const p = data.perennials.find(x=>x.id===id);
+  if(!confirm(`Remove ${p && p.name ? p.name : 'this perennial'}? This can't be undone.`)) return;
+  data.perennials = data.perennials.filter(x=>x.id!==id);
+  perennialPopup = null;
+  save(); render();
+}
+
+function logPerennialHarvest(id){
+  const amount = document.getElementById('perHarvestAmount').value;
+  if(!amount) return;
+  const unit = document.getElementById('perHarvestUnit').value;
+  const notes = document.getElementById('perHarvestNotes').value.trim();
+  const p = data.perennials.find(x=>x.id===id);
+  logHarvest({ plantId:id, plantName: p ? p.name : 'Perennial', bedName: null, amount, unit, notes });
+  render();
+}
+
+function savePerennialDetails(id){
+  const p = data.perennials.find(x=>x.id===id);
+  if(!p) return;
+  p.name = document.getElementById('perName').value.trim() || 'Perennial';
+  p.type = document.getElementById('perType').value;
+  const newAge = Number(document.getElementById('perAge').value);
+  if(!isNaN(newAge) && newAge >= 0){
+    p.ageYearsAtAdd = newAge;
+    p.dateAdded = todayStr();
+  }
+  p.waterDays = Number(document.getElementById('perWaterDays').value) || p.waterDays;
+  p.feedDays = Number(document.getElementById('perFeedDays').value) || p.feedDays;
+  p.notes = document.getElementById('perNotes').value.trim();
+  perennialPopup = null;
+  save(); render();
+}
+
+function renderPerennialPopup(){
+  if(!perennialPopup) return '';
+  const p = data.perennials.find(x=>x.id===perennialPopup.id);
+  if(!p) return '';
+  const u = perennialUrgency(p);
+  const age = perennialAgeYears(p);
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closePerennialPopup()">
+      <div class="modal">
+        <h2>${perennialPopup.isNew ? 'New perennial' : escapeHtml(p.name || 'Perennial')}</h2>
+        <div class="field">
+          <label>Name</label>
+          <input id="perName" value="${escapeHtml(p.name)}" placeholder="e.g. Apple tree" autofocus>
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <select id="perType">
+            ${PERENNIAL_TYPES.map(t=>`<option value="${t.id}" ${t.id===p.type?'selected':''}>${t.emoji} ${t.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Approx. age (years)</label>
+          <input id="perAge" type="number" min="0" step="1" value="${age}">
+        </div>
+        <div class="field">
+          <label>Water every (days)</label>
+          <input id="perWaterDays" type="number" min="1" value="${p.waterDays}">
+        </div>
+        <div class="field">
+          <label>Feed every (days)</label>
+          <input id="perFeedDays" type="number" min="1" value="${p.feedDays}">
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="perNotes" rows="2" placeholder="Sunny corner, needs deep watering in summer...">${escapeHtml(p.notes||'')}</textarea>
+        </div>
+        ${!perennialPopup.isNew ? `
+        <div class="stat-row">
+          ${statText(u.waterDiff, 'Water')}
+          <button class="mini-btn" onclick="waterPerennial('${p.id}')">Water now</button>
+        </div>
+        <div class="stat-row">
+          ${statText(u.feedDiff, 'Feed')}
+          <button class="mini-btn" onclick="feedPerennial('${p.id}')">Feed now</button>
+        </div>
+        ${renderHarvestFields('perHarvest')}
+        <div class="modal-actions" style="margin-bottom:12px;">
+          <button class="btn-cancel" style="flex:none; padding:9px 14px;" onclick="logPerennialHarvest('${p.id}')">Log harvest</button>
+        </div>
+        ${renderRecentHarvests(p.id)}
+        ` : ''}
+        <div class="modal-actions">
+          ${!perennialPopup.isNew ? `<button class="btn-delete" onclick="deletePerennial('${p.id}')">Delete</button>` : ''}
+          <button class="btn-cancel" onclick="closePerennialPopup()">Close</button>
+          <button class="btn-save" onclick="savePerennialDetails('${p.id}')">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* map-level placement, dragging, and click routing (separate from bed-canvas equivalents) */
+
+let mapSvgEl = null;
+let draggingPerennialId = null;
+let draggingTowerId = null;
+
+function mapPointToFeet(evt){
+  const pt = mapSvgEl.createSVGPoint();
+  const touch = evt.touches ? evt.touches[0] : evt;
+  pt.x = touch.clientX; pt.y = touch.clientY;
+  const ctm = mapSvgEl.getScreenCTM().inverse();
+  const loc = pt.matrixTransform(ctm);
+  const scale = 26;
+  return { x: Math.max(0, loc.x/scale), y: Math.max(0, loc.y/scale) };
+}
+
+function onMapCanvasClick(evt){
+  if(evt.target.closest('.perennial-marker')) return;
+  if(evt.target.closest('.garden-tower-marker')) return;
+  const bedG = evt.target.closest('.bed-rect');
+  if(placingPerennial){
+    const pt = mapPointToFeet(evt);
+    const id = uid('per');
+    data.perennials.push({
+      id, name:'', type:'tree', ageYearsAtAdd:0, dateAdded: todayStr(),
+      waterDays:7, feedDays:30, lastWatered: todayStr(), lastFed: todayStr(),
+      notes:'', x: pt.x, y: pt.y
+    });
+    placingPerennial = false;
+    save();
+    perennialPopup = { id, isNew:true };
+    render();
+    return;
+  }
+  if(bedG){
+    openBed(bedG.getAttribute('data-bed-id'));
+  }
+}
+
+function onMapPointerMove(evt){
+  if(draggingPerennialId){
+    evt.preventDefault();
+    const pt = mapPointToFeet(evt);
+    const p = data.perennials.find(x=>x.id===draggingPerennialId);
+    if(p){ p.x = pt.x; p.y = pt.y; renderMapCanvasOnly(); }
+    return;
+  }
+  if(draggingTowerId){
+    evt.preventDefault();
+    const pt = mapPointToFeet(evt);
+    const t = data.gardenTowers.find(x=>x.id===draggingTowerId);
+    if(t){ t.x = pt.x; t.y = pt.y; renderMapCanvasOnly(); }
+  }
+}
+
+function onMapPointerUp(){
+  if(draggingPerennialId){ draggingPerennialId = null; save(); }
+  if(draggingTowerId){ draggingTowerId = null; save(); }
+}
+
+function renderMapCanvasOnly(){
+  const wrap = document.querySelector('.map-wrap');
+  if(!wrap) return;
+  wrap.innerHTML = buildMapSvg();
+  attachMapSvgHandlers();
+}
+
+function attachMapSvgHandlers(){
+  mapSvgEl = document.querySelector('.map-wrap svg');
+  if(!mapSvgEl) return;
+  mapSvgEl.addEventListener('click', onMapCanvasClick);
+  mapSvgEl.addEventListener('pointermove', onMapPointerMove);
+  mapSvgEl.addEventListener('pointerup', onMapPointerUp);
+  mapSvgEl.addEventListener('pointerleave', onMapPointerUp);
+  mapSvgEl.querySelectorAll('.perennial-marker').forEach(g=>{
+    const id = g.getAttribute('data-id');
+    g.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); draggingPerennialId = id; });
+    g.addEventListener('click', (e)=>{ e.stopPropagation(); if(!draggingPerennialId) openPerennialPopup(id); });
+  });
+  mapSvgEl.querySelectorAll('.garden-tower-marker').forEach(g=>{
+    const id = g.getAttribute('data-id');
+    g.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); draggingTowerId = id; });
+    g.addEventListener('click', (e)=>{ e.stopPropagation(); if(!draggingTowerId) openTowerPopup(id); });
+  });
+}
+
+/* ---------- HARVEST LOG ----------
+   Entries are denormalized (plantName/bedName captured at log time) so
+   the log stays meaningful even after a plant is removed or renamed.
+   Stored in core `data` alongside beds/perennials — low write volume,
+   same spatial-garden-record shape as everything else in `data`. */
+
+const HARVEST_UNITS = ['count','lb','oz','kg','g','bunch','handful'];
+
+let harvestWindowOpen = false;
+
+function logHarvest(entry){
+  data.harvests.push({
+    id: uid('hv'),
+    plantId: entry.plantId,
+    plantName: entry.plantName,
+    bedName: entry.bedName || null,
+    date: todayStr(),
+    amount: entry.amount,
+    unit: entry.unit,
+    notes: entry.notes || ''
+  });
+  save();
+}
+
+function harvestsForPlant(plantId){
+  return data.harvests.filter(h=>h.plantId===plantId).slice().sort((a,b)=>b.date.localeCompare(a.date));
+}
+
+function renderRecentHarvests(plantId){
+  const entries = harvestsForPlant(plantId).slice(0,3);
+  if(!entries.length) return '';
+  const rows = entries.map(h=>`
+    <div class="harvest-entry">
+      <span>${h.date} — ${h.amount} ${h.unit}</span>
+      ${h.notes ? `<span class="harvest-note">${escapeHtml(h.notes)}</span>` : ''}
+    </div>
+  `).join('');
+  return `<div class="harvest-recent"><div class="harvest-recent-label">Recent harvests</div>${rows}</div>`;
+}
+
+function renderHarvestFields(idPrefix){
+  return `
+    <div class="field harvest-log-field">
+      <label>Log a harvest</label>
+      <div class="harvest-log-row">
+        <input id="${idPrefix}Amount" type="number" min="0" step="0.1" placeholder="Amount" style="flex:1;">
+        <select id="${idPrefix}Unit" style="flex:1;">
+          ${HARVEST_UNITS.map(u=>`<option value="${u}">${u}</option>`).join('')}
+        </select>
+      </div>
+      <input id="${idPrefix}Notes" placeholder="Notes (optional)" style="margin-top:6px;">
+    </div>
+  `;
+}
+
+function openHarvestWindow(){ harvestWindowOpen = true; render(); }
+function closeHarvestWindow(){ harvestWindowOpen = false; render(); }
+
+function lastYearWindowHarvests(){
+  const today = new Date(todayStr());
+  const ref = new Date(today);
+  ref.setFullYear(ref.getFullYear() - 1);
+  const start = new Date(ref); start.setDate(start.getDate() - 7);
+  const end = new Date(ref); end.setDate(end.getDate() + 7);
+  const startStr = start.toISOString().slice(0,10);
+  const endStr = end.toISOString().slice(0,10);
+  return data.harvests
+    .filter(h=> h.date >= startStr && h.date <= endStr)
+    .slice()
+    .sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function renderHarvestWindow(){
+  if(!harvestWindowOpen) return '';
+  const entries = lastYearWindowHarvests();
+  const body = entries.length
+    ? entries.map(h=>`
+        <div class="harvest-entry">
+          <span><b>${escapeHtml(h.plantName)}</b>${h.bedName ? ` · ${escapeHtml(h.bedName)}` : ''} — ${h.amount} ${h.unit}</span>
+          <span class="harvest-note">${h.date}${h.notes ? ' · ' + escapeHtml(h.notes) : ''}</span>
+        </div>
+      `).join('')
+    : `<div class="hint">Nothing logged around this week last year — either nothing was ready then, or it wasn't logged.</div>`;
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeHarvestWindow()">
+      <div class="modal">
+        <h2>This week, last year</h2>
+        <div class="harvest-window-list">${body}</div>
+        <div class="modal-actions" style="margin-top:14px;">
+          <button class="btn-cancel" onclick="closeHarvestWindow()">Close</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- GARDEN TOWER (fixed circular planter, own watering schedule) ----------
+   Deliberately much simpler than beds/perennials: no per-item growth
+   tracking, no gradient color animation — just a discrete urgency ring
+   (same traffic-light colors as perennials) around a terracotta circle
+   drawn to its real 2.5' diameter, plus a purely decorative animated
+   lettuce-leaf graphic so it always reads as "planted." Tapping it opens
+   a single free-text field — the person just types whatever's in it,
+   no structured per-plant entries. */
+
+function towerUrgency(t){
+  const today = todayStr();
+  const diff = daysBetween(today, nextDueDate(t.lastWatered, t.waterDays));
+  return diff;
+}
+
+function buildGardenTowerMarker(t, scale){
+  const cx = t.x*scale, cy = t.y*scale;
+  const r = 1.25 * scale; // 2.5' diameter
+  const ringColor = urgencyColor(towerUrgency(t));
+  const leafCount = 6;
+  let leaves = '';
+  for(let i=0;i<leafCount;i++){
+    const angle = (i/leafCount) * Math.PI * 2;
+    const lx = cx + Math.cos(angle) * r * 0.7;
+    const ly = cy + Math.sin(angle) * r * 0.7;
+    leaves += `<circle class="tower-leaf" style="animation-delay:${(i*0.35).toFixed(2)}s" cx="${lx}" cy="${ly}" r="${(r*0.32).toFixed(1)}" fill="#8FBE5A" stroke="#4A5D38" stroke-width="1"/>`;
+  }
+  return `
+    <g class="garden-tower-marker" data-id="${t.id}">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="${TOWER_TERRACOTTA}" stroke="${ringColor}" stroke-width="4"/>
+      ${leaves}
+      <circle class="tower-leaf" style="animation-delay:0.15s" cx="${cx}" cy="${cy}" r="${(r*0.36).toFixed(1)}" fill="#A9CB5E" stroke="#4A5D38" stroke-width="1"/>
+    </g>
+  `;
+}
+
+function waterTower(id){
+  const t = data.gardenTowers.find(x=>x.id===id);
+  if(t) t.lastWatered = todayStr();
+  save(); render();
+}
+
+function openTowerPopup(id){ gardenTowerPopupId = id; render(); }
+function closeTowerPopup(){ gardenTowerPopupId = null; render(); }
+
+function saveTowerDetails(id){
+  const t = data.gardenTowers.find(x=>x.id===id);
+  if(!t) return;
+  t.waterDays = Number(document.getElementById('towerWaterDays').value) || t.waterDays;
+  t.notes = document.getElementById('towerNotes').value;
+  gardenTowerPopupId = null;
+  save(); render();
+}
+
+function renderGardenTowerPopup(){
+  if(!gardenTowerPopupId) return '';
+  const t = data.gardenTowers.find(x=>x.id===gardenTowerPopupId);
+  if(!t) return '';
+  const diff = towerUrgency(t);
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeTowerPopup()">
+      <div class="modal">
+        <h2>🥬 Garden Tower</h2>
+        <div class="field">
+          <label>Water every (days)</label>
+          <input id="towerWaterDays" type="number" min="1" value="${t.waterDays}">
+        </div>
+        <div class="stat-row">
+          ${statText(diff, 'Water')}
+          <button class="mini-btn" onclick="waterTower('${t.id}')">Water now</button>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>What's planted</label>
+          <textarea id="towerNotes" rows="5" placeholder="Lettuce, spinach, strawberries...">${escapeHtml(t.notes||'')}</textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeTowerPopup()">Close</button>
+          <button class="btn-save" onclick="saveTowerDetails('${t.id}')">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- BED DETAIL VIEW (tap to place plants) ---------- */
+
+function svgPointFromEvent(evt){
+  const pt = svgEl.createSVGPoint();
+  const touch = evt.touches ? evt.touches[0] : evt;
+  pt.x = touch.clientX; pt.y = touch.clientY;
+  const ctm = svgEl.getScreenCTM().inverse();
+  const loc = pt.matrixTransform(ctm);
+  const bed = bedById(activeBedId);
+  const scale = 60;
+  return { x: Math.min(1, Math.max(0, loc.x / (bed.width*scale))), y: Math.min(1, Math.max(0, loc.y / (bed.depth*scale))) };
+}
+
+function onCanvasClick(evt){
+  if(evt.target.closest('.marker')) return;
+  const p = svgPointFromEvent(evt);
+  const bed = bedById(activeBedId);
+  if(selectedPaletteId && selectedPaletteId !== 'custom'){
+    attemptPlacePlant(activeBedId, p.x, p.y, selectedPaletteId);
+    return;
+  }
+  editingMarker = { isNew:true, x:p.x, y:p.y, name:'', color: PLANT_COLORS[bed.plants.length % PLANT_COLORS.length], maturityDays: DEFAULT_CUSTOM_MATURITY };
+  render();
+}
+
+/* ---------- COMPANION & CROP-ROTATION WARNINGS ---------- */
+// Live-checked only for palette-selected placements (which carry a known
+// paletteId); free-typed custom-name plants aren't cross-referenced since
+// there's no id to look up. "Place anyway" always available — these are
+// advisory, not blocking.
+
+let pendingPlacement = null;
+
+function checkRotationWarning(bedId, paletteId){
+  const info = PLANT_INFO[paletteId];
+  if(!info || !info.family) return null;
+  const archives = (data.bedArchive||[]).filter(a=>a.bedId===bedId)
+    .sort((a,b)=> (b.dateArchived||'').localeCompare(a.dateArchived||''))
+    .slice(0,3);
+  const match = archives.find(a=> (a.families||[]).includes(info.family));
+  if(!match) return null;
+  return `${FAMILY_LABELS[info.family] || info.family} crops grew here during "${match.label}" — replanting the same family can build up pests and disease.`;
+}
+
+function buildPlacementWarnings(bedId, paletteId){
+  const warnings = [];
+  const bed = bedById(bedId);
+  const info = PLANT_INFO[paletteId];
+  const item = paletteItemById(paletteId);
+  if(info && item){
+    (bed.plants||[]).forEach(p=>{
+      if(p.paletteId && info.avoid.includes(p.paletteId)){
+        warnings.push(`${item.name} doesn't pair well with ${p.name} nearby — commonly cited as bad neighbors.`);
+      }
+    });
+    const rotationWarning = checkRotationWarning(bedId, paletteId);
+    if(rotationWarning) warnings.push(rotationWarning);
+  }
+  return warnings;
+}
+
+function attemptPlacePlant(bedId, x, y, paletteId){
+  const warnings = buildPlacementWarnings(bedId, paletteId);
+  if(warnings.length){
+    pendingPlacement = { bedId, x, y, paletteId, warnings };
+    render();
+  } else {
+    commitPlacePlant(bedId, x, y, paletteId);
+  }
+}
+
+function commitPlacePlant(bedId, x, y, paletteId){
+  const bed = bedById(bedId);
+  const item = paletteItemById(paletteId);
+  bed.plants.push({
+    id: uid('pl'), name:item.name, color:item.color, x, y, paletteId:item.id,
+    plantedDate: todayStr(), maturityDays: getMaturityDaysForId(item.id)
+  });
+  save();
+  render();
+}
+
+function confirmPendingPlacement(){
+  if(!pendingPlacement) return;
+  const { bedId, x, y, paletteId } = pendingPlacement;
+  pendingPlacement = null;
+  commitPlacePlant(bedId, x, y, paletteId);
+}
+
+function cancelPendingPlacement(){
+  pendingPlacement = null;
+  render();
+}
+
+function renderPlacementWarningModal(){
+  if(!pendingPlacement) return '';
+  const item = paletteItemById(pendingPlacement.paletteId);
+  const items = pendingPlacement.warnings.map(w=>`<div class="warning-item">⚠ ${escapeHtml(w)}</div>`).join('');
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) cancelPendingPlacement()">
+      <div class="modal">
+        <h3>Before planting ${item ? escapeHtml(item.name) : ''}</h3>
+        <div class="warning-list">${items}</div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="cancelPendingPlacement()">Cancel</button>
+          <button class="btn-save" onclick="confirmPendingPlacement()">Place anyway</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- CROP ROTATION: SEASON ARCHIVE ---------- */
+// Manual "close out the season" step: snapshots which plant families grew
+// in this bed, then clears it. checkRotationWarning() looks at the most
+// recent 2-3 archive entries per bed when placing a new plant.
+
+let archivingBedOpen = false;
+
+function openArchiveBed(){
+  archivingBedOpen = true;
+  render();
+}
+
+function closeArchiveBed(){
+  archivingBedOpen = false;
+  render();
+}
+
+function confirmArchiveBed(){
+  const bed = bedById(activeBedId);
+  const labelInput = document.getElementById('archiveSeasonLabel');
+  const label = (labelInput && labelInput.value.trim()) || `${new Date().getFullYear()} season`;
+  const families = Array.from(new Set(
+    (bed.plants||[]).map(p => p.paletteId && PLANT_INFO[p.paletteId] ? PLANT_INFO[p.paletteId].family : null).filter(Boolean)
+  ));
+  if(!data.bedArchive) data.bedArchive = [];
+  data.bedArchive.push({ id: uid('arc'), bedId: bed.id, label, dateArchived: todayStr(), families });
+  bed.plants = [];
+  archivingBedOpen = false;
+  save(); render();
+}
+
+function renderArchiveBedModal(){
+  if(!archivingBedOpen) return '';
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeArchiveBed()">
+      <div class="modal">
+        <h3>Archive this season</h3>
+        <div class="hint" style="margin-bottom:10px;">Records what grew here for future rotation warnings, then clears the bed for replanting.</div>
+        <div class="field">
+          <label>Season label</label>
+          <input id="archiveSeasonLabel" type="text" value="${new Date().getFullYear()} season" placeholder="e.g. Summer 2026">
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeArchiveBed()">Cancel</button>
+          <button class="btn-save" onclick="confirmArchiveBed()">Archive &amp; clear bed</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function onMarkerPointerDown(id, evt){
+  evt.stopPropagation();
+  draggingId = id;
+}
+
+function onSvgPointerMove(evt){
+  if(!draggingId) return;
+  evt.preventDefault();
+  const p = svgPointFromEvent(evt);
+  const bed = bedById(activeBedId);
+  const m = bed.plants.find(pl=>pl.id===draggingId);
+  if(m){ m.x = p.x; m.y = p.y; renderBedCanvasOnly(); }
+}
+
+function onSvgPointerUp(){
+  if(draggingId){ draggingId = null; save(); }
+}
+
+function openEditMarker(id){
+  const bed = bedById(activeBedId);
+  const m = bed.plants.find(pl=>pl.id===id);
+  if(m) editingMarker = { isNew:false, id:m.id, x:m.x, y:m.y, name:m.name, color:m.color, maturityDays:m.maturityDays || DEFAULT_CUSTOM_MATURITY, plantedDate:m.plantedDate };
+  render();
+}
+
+function logMarkerHarvest(id){
+  const amount = document.getElementById('markerHarvestAmount').value;
+  if(!amount) return;
+  const unit = document.getElementById('markerHarvestUnit').value;
+  const notes = document.getElementById('markerHarvestNotes').value.trim();
+  const bed = bedById(activeBedId);
+  const p = bed.plants.find(pl=>pl.id===id);
+  logHarvest({ plantId:id, plantName: p ? p.name : 'Plant', bedName: bed.name, amount, unit, notes });
+  render();
+}
+
+function confirmSaveMarker(){
+  const name = document.getElementById('markerName').value.trim() || 'Plant';
+  const maturityInput = document.getElementById('markerMaturity');
+  const maturityDays = maturityInput ? (Number(maturityInput.value) || DEFAULT_CUSTOM_MATURITY) : DEFAULT_CUSTOM_MATURITY;
+  const daysAgoInput = document.getElementById('markerDaysAgo');
+  const plantedDate = daysAgoInput ? dateMinusDays(daysAgoInput.value) : todayStr();
+  const bed = bedById(activeBedId);
+  if(editingMarker.isNew){
+    bed.plants.push({ id: uid('pl'), name, color: editingMarker.color, x: editingMarker.x, y: editingMarker.y, plantedDate, maturityDays });
+  } else {
+    const m = bed.plants.find(pl=>pl.id===editingMarker.id);
+    if(m){ m.name = name; m.color = editingMarker.color; m.maturityDays = maturityDays; m.plantedDate = plantedDate; }
+  }
+  editingMarker = null;
+  save(); render();
+}
+
+function deleteMarker(){
+  const bed = bedById(activeBedId);
+  bed.plants = bed.plants.filter(pl=>pl.id !== editingMarker.id);
+  editingMarker = null;
+  save(); render();
+}
+
+function closeModal(){ editingMarker = null; render(); }
+
+function selectColor(c){
+  editingMarker.color = c;
+  render();
+  document.getElementById('markerName').focus();
+}
+
+function clearBedPlants(){
+  bedById(activeBedId).plants = [];
+  save(); render();
+}
+
+function buildBedSvg(bed){
+  const scale = 60;
+  const w = bed.width * scale, h = bed.depth * scale;
+  let grid = '';
+  for(let i=0;i<=Math.ceil(bed.width);i++){
+    grid += `<line x1="${i*scale}" y1="0" x2="${i*scale}" y2="${h}" stroke="#D6DCC9" stroke-width="1"/>`;
+  }
+  for(let j=0;j<=Math.ceil(bed.depth);j++){
+    grid += `<line x1="0" y1="${j*scale}" x2="${w}" y2="${j*scale}" stroke="#D6DCC9" stroke-width="1"/>`;
+  }
+  const markers = bed.plants.map(p=>{
+    const cx = p.x * w, cy = p.y * h;
+    return `
+      <g class="marker" data-id="${p.id}">
+        <circle cx="${cx}" cy="${cy}" r="16" fill="${p.color}" stroke="#F5F4EC" stroke-width="2.5"/>
+        <text x="${cx}" y="${cy - 22}" font-size="11" fill="#242B1D" text-anchor="middle" font-weight="600" font-family="Source Sans 3, sans-serif">${escapeHtml(p.name)}</text>
+      </g>
+    `;
+  }).join('');
+  return `
+    <svg id="bedSvg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+      <rect x="0" y="0" width="${w}" height="${h}" fill="#F5F4EC"/>
+      ${grid}
+      ${markers}
+    </svg>
+  `;
+}
+
+function renderBedCanvasOnly(){
+  const wrap = document.getElementById('svgHolder');
+  if(!wrap) return;
+  wrap.innerHTML = buildBedSvg(bedById(activeBedId));
+  attachSvgHandlers();
+}
+
+function attachSvgHandlers(){
+  svgEl = document.getElementById('bedSvg');
+  if(!svgEl) return;
+  svgEl.addEventListener('click', onCanvasClick);
+  svgEl.addEventListener('pointermove', onSvgPointerMove);
+  svgEl.addEventListener('pointerup', onSvgPointerUp);
+  svgEl.addEventListener('pointerleave', onSvgPointerUp);
+  svgEl.querySelectorAll('.marker').forEach(g=>{
+    const id = g.getAttribute('data-id');
+    g.addEventListener('pointerdown', (e)=>onMarkerPointerDown(id, e));
+    g.addEventListener('click', (e)=>{ e.stopPropagation(); if(!draggingId) openEditMarker(id); });
+  });
+}
+
+function exportBedPng(){
+  const bed = bedById(activeBedId);
+  const svgString = new XMLSerializer().serializeToString(document.getElementById('bedSvg'));
+  const img = new Image();
+  const blob = new Blob([svgString], {type:'image/svg+xml;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  img.onload = function(){
+    const exportScale = 3;
+    const canvas = document.createElement('canvas');
+    canvas.width = bed.width * 60 * exportScale;
+    canvas.height = bed.depth * 60 * exportScale;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#F5F4EC';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.download = bed.name.replace(/\s+/g,'-').toLowerCase() + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+  img.src = url;
+}
+
+function renderMarkerModal(){
+  if(!editingMarker) return '';
+  return `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h2>${editingMarker.isNew ? 'Add plant' : 'Edit plant'}</h2>
+        <div class="field">
+          <label>Name</label>
+          <input id="markerName" value="${escapeHtml(editingMarker.name)}" placeholder="e.g. Basil" autofocus>
+        </div>
+        <div class="field">
+          <label>Color</label>
+          <div class="color-row">
+            ${PLANT_COLORS.map(c=>`<div class="color-swatch ${c===editingMarker.color?'sel':''}" style="background:${c}" onclick="selectColor('${c}')"></div>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>Days to maturity</label>
+          <input id="markerMaturity" type="number" min="1" value="${editingMarker.maturityDays || DEFAULT_CUSTOM_MATURITY}">
+        </div>
+        <div class="field">
+          <label>Planted (days ago)</label>
+          <input id="markerDaysAgo" type="number" min="0" value="${editingMarker.isNew ? 0 : daysSince(editingMarker.plantedDate)}">
+          <div class="hint" style="margin-top:4px;">Leave at 0 for today. Enter a number if you forgot to log it at planting time.</div>
+        </div>
+        ${!editingMarker.isNew ? `
+        ${renderHarvestFields('markerHarvest')}
+        <div class="modal-actions" style="margin-bottom:12px;">
+          <button class="btn-cancel" style="flex:none; padding:9px 14px;" onclick="logMarkerHarvest('${editingMarker.id}')">Log harvest</button>
+        </div>
+        ${renderRecentHarvests(editingMarker.id)}
+        ` : ''}
+        <div class="modal-actions">
+          ${editingMarker.isNew ? '' : `<button class="btn-delete" onclick="deleteMarker()">Delete</button>`}
+          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+          <button class="btn-save" onclick="confirmSaveMarker()">Save</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderBed(){
+  const bed = bedById(activeBedId);
+  return `
+    <div class="bed-screen">
+      <header>
+        <button class="back" onclick="backToMap()">← Map</button>
+        <div class="titles">
+          <h1>${escapeHtml(bed.name)}</h1>
+          <div class="sub">${bed.width}' × ${bed.depth}' — tap to place, drag to move</div>
+        </div>
+      </header>
+      <div class="canvas-flex" id="svgHolder">${buildBedSvg(bed)}</div>
+      <div class="bed-bottom-bar">
+        ${renderPlantBar()}
+        <div class="actions">
+          <button class="btn-cancel" style="background:var(--stone); color:var(--ink); font-family:inherit;" onclick="toggleGrowthPopout()">Growth</button>
+          <button class="btn-cancel" style="background:var(--stone); color:var(--ink); font-family:inherit;" onclick="clearBedPlants()">Clear bed</button>
+          <button class="btn-export" onclick="exportBedPng()">Export</button>
+        </div>
+        <div class="actions" style="margin-top:8px;">
+          <button class="btn-cancel" style="background:var(--stone); color:var(--ink); font-family:inherit;" ${bed.plants.length ? `onclick="openArchiveBed()"` : 'disabled'}>📦 Archive season</button>
+        </div>
+      </div>
+    </div>
+    ${renderMarkerModal()}
+    ${renderPlantPopout()}
+    ${renderGrowthPopout()}
+    ${renderSpacingFillPopup()}
+    ${renderPlacementWarningModal()}
+    ${renderArchiveBedModal()}
+  `;
+}
+
+/* ---------- ROOT RENDER ---------- */
+
+function render(){
+  const root = document.getElementById('root');
+  if(!data){ root.innerHTML = `<div style="padding:60px 20px; text-align:center; color:#5C6650;">Loading your garden...</div>`; return; }
+  root.style.paddingBottom = (view === 'bed' || view === 'notes') ? '0' : '';
+  root.style.overflow = (view === 'home') ? 'hidden' : '';
+  root.style.height = (view === 'home') ? '100vh' : '';
+  document.body.style.overflow = (view === 'home') ? 'hidden' : '';
+  if(view === 'home') root.innerHTML = renderHome();
+  else if(view === 'planning') root.innerHTML = renderPlanning();
+  else if(view === 'plantInfo') root.innerHTML = renderPlantInfo();
+  else if(view === 'map') root.innerHTML = renderMap();
+  else if(view === 'bed') root.innerHTML = renderBed();
+  else if(view === 'settings') root.innerHTML = renderSettings();
+  else if(view === 'notes') root.innerHTML = renderNotes();
+  if(view === 'bed') attachSvgHandlers();
+  if(view === 'map') attachMapSvgHandlers();
+}
+
+load();
+</script>
+</body>
+</html>
